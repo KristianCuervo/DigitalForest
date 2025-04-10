@@ -1,6 +1,6 @@
 # Digital Forest Simulator
 
-This is the final project for the DTU course **02563 Generative Methods for Computer Graphics**. It combines the topics of **Recursive Structures** by implementing L-Systems, **Cellular Automata** through the use of life and death on a cellular grid, and **Evolutionary Methods** by integrating genetic algorithms in the iteration of tree types. 
+This is the final project for the DTU course **02563 Generative Methods for Computer Graphics**. It combines the topics of **Recursive Structures** by implementing L-Systems, **Cellular Automata** through the use of life and death on a cellular grid, and **Evolutionary Methods** by integrating genetic algorithms in the iteration of l-systems. 
 
 ## Project Outline 
 The following section elaborates on the different sections of the simulation. 
