@@ -2,18 +2,29 @@ import numpy as np
 from .tree import Tree
 import random as random
 from .geneticAlgorithm import GeneticAlgorithm
-from .species_genes import SPECIES_DEFAULT_PARAMS
+from .species_genes import SPECIES_DEFAULT_PARAMS, get_species_params
+from .species import HondaTree, PineTree, BushTree, FernTree, BinaryTree, StochasticTree
+
+SPECIES_CLASS = {
+    "honda"      : HondaTree,
+    "pine"       : PineTree,
+    "bush"       : BushTree,
+    "fern"       : FernTree,
+    "binary"     : BinaryTree,
+    "stochastic" : StochasticTree,
+}
+
+
 
 class Forest:
-    def __init(self, size:int, initial_population:float=0.5, spawn_probablility:float=0.15):
+    def __init__(self, size:int, initial_population:float=0.5, spawn_probability:float=0.15, species_subset: list[str] | None = None):
         # Forest is a grid of trees with boundaries of None values
         self.size = size # Tree Size
-        self.grid = [
-                        [None for j in range(size+2)]
-                        for i in range(size+2)]# Introduces boundaries with size+2
-        
+        self.grid = np.empty((size+2, size+2), dtype=object)
+
         # Forest is spawned on grid with random tree species
         self.initial_population = initial_population
+        self.active_species = species_subset or list(SPECIES_CLASS.keys())
         self.initial_spawn()
 
         # Sunlight grid is a grid of sunlight values for each tree at their current growth
@@ -22,8 +33,8 @@ class Forest:
 
         # Spawn probability is the probability of spawning a new tree in an empty cell
         # Genetic algorithm is used to create new trees from the gene pools
-        self.spawn_probability = spawn_probablility
-        self.genetic_algorithm = GeneticAlgorithm()
+        self.spawn_probability = spawn_probability
+        self.genetic_algorithm = GeneticAlgorithm(mutation_rate=0.2, mutation_strength=0.1)
     
     def initial_spawn(self):
         """
@@ -31,15 +42,15 @@ class Forest:
         It should be investigated whether the trees should also start at
         age 1 or at random ages.
         """
-        for i in range(1, self.size+2):
-            for j in range(1, self.size+2):
+        for i in range(1, self.size+1):
+            for j in range(1, self.size+1):
                 # 1 --> self.size+1 are the non-boundary cells
                 
                 if np.random.rand() < self.initial_population:
                     # Given a wanted population probability distribution, spawn random trees
-                    self.grid[i][j] = Tree(genes=random.choice(SPECIES_DEFAULT_PARAMS))
-
-        pass
+                    species_name = random.choice(self.active_species)
+                    genes = get_species_params(species_name)
+                    self.grid[i, j] = SPECIES_CLASS[species_name](genes=genes)
 
     def update_sunlight(self):
         """
@@ -47,12 +58,12 @@ class Forest:
         The sunlight value is determined by the distance to the nearest tree
         and the angle of the sun. This is required to calculate the shadow.
         """
-        sunlight_grid = np.zeros((self.size, self.size))
-        for i in range(1, self.size+2):
-            for j in range(1, self.size+2):
+        sunlight_grid = np.zeros((self.size+2, self.size+2))
+        for i in range(1, self.size+1):
+            for j in range(1, self.size+1):
                 if self.grid[i, j] is not None:
                     sunlight_grid[i, j] = self.grid[i, j].sunlight
-        return self.sunlight_grid
+        self.sunlight_grid =  sunlight_grid
 
     def update_shadows(self):
         """
@@ -65,8 +76,8 @@ class Forest:
         shadow_kernel = np.array([[0.05, 0.1, 0.05],
                                   [0.1, 0, 0.1],
                                   [0.05, 0.1, 0.05]])
-        for i in range(1, self.size+2):
-            for j in range(1, self.size+2):
+        for i in range(1, self.size+1):
+            for j in range(1, self.size+1):
                 if self.grid[i, j] is not None:
                     self.grid[i, j].shadow = np.sum(shadow_kernel*self.sunlight_grid[i-1:i+2, j-1:j+2])
     
@@ -76,23 +87,23 @@ class Forest:
         Determines whether each tree in the forest survives or dies.
         The trees that die are removed from the forest.
         """
-        for i in range(1, self.size+2):
-            for j in range(1, self.size+2):
+        for i in range(1, self.size+1):
+            for j in range(1, self.size+1):
                 if self.grid[i, j] is not None:
                     if self.grid[i, j].survival_roll() == False:
-                        self.grid[i][j] = None # Kills the tree instance
+                        self.grid[i, j] = None # Kills the tree instance
                     else:
-                        self.grid[i][j].grow()
+                        self.grid[i, j].grow()
 
     def update_gene_pools(self):
         """
         Returns seperate lists of the instances of each species in the forest.
         """
         gene_pools = {}
-        for i in range(1, self.size+2):
-            for j in range(1, self.size+2):
+        for i in range(1, self.size+1):
+            for j in range(1, self.size+1):
                 if self.grid[i, j] is not None:
-                    species = self.grid[i, j].genes # this is a string of the species name 
+                    species = self.grid[i, j].genes['species'] # this is a string of the species name 
                     if species not in gene_pools:
                         gene_pools[species] = [] # creates a new list for the species
                     gene_pools[species].append(self.grid[i, j]) # appends tree instance to list
@@ -104,21 +115,20 @@ class Forest:
         The trees are spawned in empty cells with a probability of spawn_probability.
         """
         self.update_gene_pools()
-        for i in range(1, self.size+2):
-            for j in range(1, self.size+2):
+        for i in range(1, self.size+1):
+            for j in range(1, self.size+1):
                 if self.grid[i, j] is None and np.random.rand() < self.spawn_probability:
                     species = random.choice(list(self.gene_pools.keys()))
                     current_gene_pool = self.gene_pools[species]
                     # Create a child tree from gene pool
-                    child_tree = self.genetic_algorithm.generate_children(current_gene_pool, 1)[0]
-                    self.grid[i][j] = child_tree
-
-    def grow_trees(self):
-        """
-        Grows each tree in the forest which is alive.
-        """
-        for i in range(1, self.size+2):
-            for j in range(1, self.size+2):
-                if self.grid[i, j] is not None:
-                    self.grid[i, j].grow()
+                    child_genes = self.genetic_algorithm.generate_children(current_gene_pool, 1)[0]
+                    self.grid[i, j] = SPECIES_CLASS[species](genes=child_genes)
                 
+    
+    def step(self):
+        """
+        Runs one step of the simulation.
+        """
+        self.update_shadows()
+        self.death_or_growth()
+        self.spawn_new_trees()

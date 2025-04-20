@@ -1,17 +1,35 @@
+import time
 from forestLibrary.forest import Forest
-
-
-total_generations = 100
+from forestLibrary.visual import build_forest_graph
+from pygel3d import gl_display as gl
 
 def main():
-    forest = Forest(size=10, spawn_probability=0.1)
-    generation = 0
+    total_generations = 100
+    delay            = 2.0
+    spacing          = 1.0
 
-    while generation < total_generations:
-        forest.update_shadows()
-        forest.death_or_growth()
-        forest.spawn_new_trees()
-        generation += 1
+    # 1) Create viewer once (no display yet)
+    viewer = gl.Viewer()
+
+    # 2) Set up your forest
+    forest = Forest(size=10, initial_population=0.5, spawn_probability=0.25, species_subset=["honda", "stochastic", "binary"])
+
+    # 3) Loop in pure Python
+    for gen in range(total_generations):
+        forest.step()                                          # update sim
+        g = build_forest_graph(forest, grid_spacing=spacing)  # rebuild graph
+
+        # 4) Draw one frame, then return
+        viewer.display(
+            g,
+            mode='w',           # wireframe, for instance
+            smooth=True,
+            bg_col=[1, 1, 1],   # white background
+            reset_view=False,   # keep camera
+            once=True           # <<< critical bit!
+        )
+
+        time.sleep(delay)  # slow it down so you can see it
 
 if __name__ == "__main__":
     main()

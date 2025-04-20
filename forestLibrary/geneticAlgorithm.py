@@ -31,11 +31,11 @@ class GeneticAlgorithm:
         Performs 50/50 crossover between two genes to create a new gene
         """
         child_genes = {}
-        for key in parent1.keys():
+        for key in parent1.genes.keys():
             if random.random() < 0.5:
-                child_genes[key] = parent1[key]
+                child_genes[key] = parent1.genes[key]
             else:
-                child_genes[key] = parent2[key]
+                child_genes[key] = parent2.genes[key]
         return child_genes
     
     def mutate(self, child_genes):
@@ -43,7 +43,7 @@ class GeneticAlgorithm:
         Mutates a gene by mutation strength with a likelihood of mutation rate.
         """
         for key in child_genes.keys():
-            if random.random() < self.mutation_rate:
+            if random.random() < self.mutation_rate and key != "species":
                 child_genes[key] += random.uniform(-self.mutation_strength, self.mutation_strength) * child_genes[key]
         return child_genes
         

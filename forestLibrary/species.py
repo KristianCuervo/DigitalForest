@@ -3,7 +3,7 @@ from .tree import Tree
 
 class HondaTree(Tree):
     def __init__(self, genes):
-        axiom = [('A', 1.0, 0.2)]  # Classic Honda model
+        axiom = [('A', 1.0, 0.2)]
         super().__init__(genes, axiom=axiom)
 
     def production_rule(self, sym):
@@ -20,15 +20,17 @@ class HondaTree(Tree):
             case ('A', s, w):
                 w1 = w * q**e
                 w2 = w * (1 - q)**e
-                return [('!', w), ('F', s),
-                        ('[', ('+', alpha1), ('/', phi1), ('A', s * r1, w1), ']'),
-                        ('[', ('+', alpha2), ('/', phi2), ('A', s * r2, w2), ']')]
+                return [
+                    ('!', w), ('F', s),
+                    '[', ('+', alpha1), ('/', phi1), ('A', s * r1, w1), ']',
+                    '[', ('+', alpha2), ('/', phi2), ('A', s * r2, w2), ']'
+                ]
             case _:
                 return [sym]
 
 class PineTree(Tree):
     def __init__(self, genes):
-        axiom = [('A', 1.2, 0.3)]  # Taller and thicker trunk start
+        axiom = [('A', 1.2, 0.3)]
         super().__init__(genes, axiom=axiom)
 
     def production_rule(self, sym):
@@ -49,16 +51,18 @@ class PineTree(Tree):
                 w1 = w * q**e
                 w2 = w * (1 - q)**e
                 w3 = w * 0.3
-                return [('!', w), ('F', s),
-                        ('[', ('+', alpha1), ('/', phi1), ('A', s * r1, w1), ']'),
-                        ('[', ('+', alpha2), ('/', phi2), ('A', s * r2, w2), ']'),
-                        ('[', ('+', alpha3), ('/', phi3), ('A', s * r3, w3), ']')]
+                return [
+                    ('!', w), ('F', s),
+                    '[', ('+', alpha1), ('/', phi1), ('A', s * r1, w1), ']',
+                    '[', ('+', alpha2), ('/', phi2), ('A', s * r2, w2), ']',
+                    '[', ('+', alpha3), ('/', phi3), ('A', s * r3, w3), ']'
+                ]
             case _:
                 return [sym]
 
 class BushTree(Tree):
     def __init__(self, genes):
-        axiom = [('A', 0.7, 0.15)]  # Shorter, bushier start
+        axiom = [('A', 0.7, 0.15)]
         super().__init__(genes, axiom=axiom)
 
     def production_rule(self, sym):
@@ -71,15 +75,17 @@ class BushTree(Tree):
         match sym:
             case ('A', s, w):
                 w_new = w * q**e
-                return [('!', w), ('F', s),
-                        ('[', ('+', alpha), ('/', phi), ('A', s * r, w_new), ']'),
-                        ('[', ('-', alpha), ('/', -phi), ('A', s * r, w_new), ']')]
+                return [
+                    ('!', w), ('F', s),
+                    '[', ('+', alpha), ('/', phi), ('A', s * r, w_new), ']',
+                    '[', ('-', alpha), ('/', -phi), ('A', s * r, w_new), ']'
+                ]
             case _:
                 return [sym]
 
 class FernTree(Tree):
     def __init__(self, genes):
-        axiom = [('A', 0.6, 0.1)]  # Small initial leaf stem
+        axiom = [('A', 0.6, 0.1)]
         super().__init__(genes, axiom=axiom)
 
     def production_rule(self, sym):
@@ -92,17 +98,19 @@ class FernTree(Tree):
         match sym:
             case ('A', s, w):
                 w_new = w * q**e
-                return [('!', w), ('F', s),
-                        ('[', ('+', alpha), ('/', phi), ('A', s * r, w_new), ']'),
-                        ('F', s),
-                        ('[', ('-', alpha), ('/', -phi), ('A', s * r, w_new), ']'),
-                        ('F', s)]
+                return [
+                    ('!', w), ('F', s),
+                    '[', ('+', alpha), ('/', phi), ('A', s * r, w_new), ']',
+                    ('F', s),
+                    '[', ('-', alpha), ('/', -phi), ('A', s * r, w_new), ']',
+                    ('F', s)
+                ]
             case _:
                 return [sym]
 
 class BinaryTree(Tree):
     def __init__(self, genes):
-        axiom = [('A', 1.0, 0.2)]  # Balanced upright start
+        axiom = [('A', 1.0, 0.2)]
         super().__init__(genes, axiom=axiom)
 
     def production_rule(self, sym):
@@ -115,9 +123,11 @@ class BinaryTree(Tree):
         match sym:
             case ('A', s, w):
                 w_new = w * q**e
-                return [('!', w), ('F', s),
-                        ('[', ('+', alpha), ('/', phi), ('A', s * r, w_new), ']'),
-                        ('[', ('-', alpha), ('/', -phi), ('A', s * r, w_new), ']')]
+                return [
+                    ('!', w), ('F', s),
+                    '[', ('+', alpha), ('/', phi), ('A', s * r, w_new), ']',
+                    '[', ('-', alpha), ('/', -phi), ('A', s * r, w_new), ']'
+                ]
             case _:
                 return [sym]
 
@@ -138,12 +148,12 @@ class StochasticTree(Tree):
                 w_new = w * q**e
                 options = [
                     [('!', w), ('F', s),
-                     ('[', ('+', alpha), ('/', phi), ('A', s * r, w_new), ']'),
-                     ('[', ('-', alpha), ('/', -phi), ('A', s * r, w_new), ']')],
+                     '[', ('+', alpha), ('/', phi), ('A', s * r, w_new), ']',
+                     '[', ('-', alpha), ('/', -phi), ('A', s * r, w_new), ']'],
                     [('!', w), ('F', s),
-                     ('[', ('+', alpha), ('/', phi), ('A', s * r, w_new), ']')],
+                     '[', ('+', alpha), ('/', phi), ('A', s * r, w_new), ']'],
                     [('!', w), ('F', s),
-                     ('[', ('-', alpha), ('/', -phi), ('A', s * r, w_new), ']')]
+                     '[', ('-', alpha), ('/', -phi), ('A', s * r, w_new), ']']
                 ]
                 return random.choice(options)
             case _:
