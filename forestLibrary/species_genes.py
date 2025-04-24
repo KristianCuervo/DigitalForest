@@ -1,18 +1,73 @@
 import random
 
 SPECIES_DEFAULT_PARAMS = {
-    "honda": {
+    "honda": [
+        {
+        # D Tree
         "species": "honda",
         # branch‐length scalers
-        "r1": 0.78, "r2": 0.82,
+        "r1": 0.60, "r2": 0.85,
+        # yaw (left/right) angles
+        "alpha1": 25, "alpha2": -15,
+        # pitch angles (tilt branches up)
+        "phi1": 180,  # right branch up 50°
+        "phi2": 180,  # left branch up 40°
+        # thickness factor & exponent
+        "q": 0.45, "e": 0.50
+        },
+        {
+        # E Tree
+        "species": "honda",
+        # branch‐length scalers
+        "r1": 0.58, "r2": 0.83,
+        # yaw (left/right) angles
+        "alpha1": 30, "alpha2": 15,
+        # pitch angles (tilt branches up)
+        "phi1": 0,  # right branch up 50°
+        "phi2": 180,  # left branch up 40°
+        # thickness factor & exponent
+        "q": 0.40, "e": 0.50
+        },
+        {
+        # G Tree
+        "species": "honda",
+        # branch‐length scalers
+        "r1": 0.80, "r2": 0.80,
         # yaw (left/right) angles
         "alpha1": 30, "alpha2": -30,
         # pitch angles (tilt branches up)
-        "phi1": 50,  # right branch up 50°
-        "phi2": 40,  # left branch up 40°
+        "phi1": 137,  # right branch up 50°
+        "phi2": 137,  # left branch up 40°
         # thickness factor & exponent
-        "q": 0.49, "e": 0.57
-    },
+        "q": 0.50, "e": 0.50
+        },
+        {
+        # H Tree
+        "species": "honda",
+        # branch‐length scalers
+        "r1": 0.95, "r2": 0.80,
+        # yaw (left/right) angles
+        "alpha1": 5, "alpha2": -30,
+        # pitch angles (tilt branches up)
+        "phi1": -90,  # right branch up 50°
+        "phi2": 90,  # left branch up 40°
+        # thickness factor & exponent
+        "q": 0.60, "e": 0.45
+        },
+        {
+        # I Tree
+        "species": "honda",
+        # branch‐length scalers
+        "r1": 0.55, "r2": 0.95,
+        # yaw (left/right) angles
+        "alpha1": -5, "alpha2": 30,
+        # pitch angles (tilt branches up)
+        "phi1": 137,  # right branch up 50°
+        "phi2": 137,  # left branch up 40°
+        # thickness factor & exponent
+        "q": 0.40, "e": 0.00
+        },
+        ],
     "pine": {
         "species": "pine",
         "r1": 0.75, "r2": 0.80, "r3": 0.65,
@@ -57,7 +112,11 @@ def get_species_params(species_name: str, stochastic_range: float = 0.05) -> dic
     Returns a copy of the default params for a given species,
     with a small random +/- variation on each numeric parameter.
     """
-    defaults = SPECIES_DEFAULT_PARAMS[species_name]
+    defaults = SPECIES_DEFAULT_PARAMS[species_name]\
+        
+    if type(defaults) is list:
+        defaults = random.choice(defaults)
+        
     new_params = {}
     for k, v in defaults.items():
         if isinstance(v, (float, int)):

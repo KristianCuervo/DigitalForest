@@ -46,12 +46,12 @@ class SpaceTurtle:
         self.T = self.T @ translation_matrix(array([0.0, d, 0.0], dtype=float))
 
     def turn(self, a):
-        # yaw around Y
-        self.T = self.T @ rotation_matrix(a, axis=1)
+        # yaw around X
+        self.T = self.T @ rotation_matrix(a, axis=0)
 
     def roll(self, a):
-        # roll around Z
-        self.T = self.T @ rotation_matrix(a, axis=0)
+        # roll around Y
+        self.T = self.T @ rotation_matrix(a, axis=1)
 
     def get_pos(self):
         p = self.T @ array([0.0, 0.0, 0.0, 1.0], dtype=float)
