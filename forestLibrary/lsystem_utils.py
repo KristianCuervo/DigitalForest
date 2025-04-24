@@ -2,9 +2,6 @@ import numpy as np
 from numpy import eye, array, zeros
 from math import cos, sin, pi
 
-# --------------------------------------------------------------------------
-# 3D Turtle & L‑System Interpreter
-# --------------------------------------------------------------------------
 def rotation_matrix(angle, axis):
     R = eye(4, dtype=float)
     i1, i2 = (axis + 1) % 3, (axis + 2) % 3
