@@ -12,7 +12,7 @@ def main():
     viewer = gl.Viewer()
 
     # 2) Set up your forest
-    forest = Forest(size=10, initial_population=0.5, spawn_probability=0.25, species_subset=["honda", "stochastic", "binary"])
+    forest = Forest(size=10, initial_population=0.5, spawn_probability=0.25, species_subset=["honda"])
 
     # 3) Loop in pure Python
     for gen in range(total_generations):
