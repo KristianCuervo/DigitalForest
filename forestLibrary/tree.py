@@ -79,7 +79,7 @@ class Tree:
         """
         The tree dies with an increasing probability as it ages.
         """
-        chance_of_death = (self.age**3 / 100)
+        chance_of_death = (self.age**2 / 100)
         if np.random.rand() < chance_of_death:
             return True
         return False
@@ -95,8 +95,8 @@ class Tree:
         self.survival_requirement = (self.shadow + effective_size)
         
         # The tree dies if it does not get enough sunlight
-        if self.sunlight < self.survival_requirement:
-            return False
+        #if self.sunlight < self.survival_requirement:
+        #    return False
         
         # If the tree is not dead, check if it dies from old age
         if self.old_age_death_roll():

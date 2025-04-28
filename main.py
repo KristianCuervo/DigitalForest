@@ -5,8 +5,8 @@ from pygel3d import gl_display as gl
 
 def main():
     # Simulation Parameters
-    total_generations = 100
-    delay            = 0.5
+    total_generations = 2
+    delay            = 1.0
     spacing          = 1.0
     viewer = gl.Viewer()
 
