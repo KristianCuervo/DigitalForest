@@ -4,18 +4,20 @@
 
 
 # Trees
-- Select what trees to use in simulation
-- Fine tune "alternative production rules" and their params
-- Gene pool & Breedability characteristics
+- Select what trees to use in simulation # DONE
+- Fine tune "alternative production rules" and their params # DONE
+- Gene pool & Breedability characteristics # DONE
 if time: make textures
 - Max age to prevent micro branches
 
 
 # Game
 - Balancing 
--- fitness functions
--- growth constraints
--- death rolls
+-- fitness functions # done
+-- growth constraints # done kinda of
+-- death rolls # done
+
+- implemented seasons which change the fitness function
 
 
 # Fun stuff if we have time 

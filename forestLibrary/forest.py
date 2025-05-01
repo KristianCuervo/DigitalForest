@@ -16,6 +16,13 @@ SPECIES_CLASS = {
 class Forest:
     def __init__(self, size:int, initial_population:float=0.5, spawn_probability:float=0.15, species_subset: list[str] | None = None):
         # Forest is a grid of trees with boundaries of None values
+        self.gen = 0
+        self.season_initial = 2
+        self.season_length = 90
+        self.season_list = ['autumn', 'winter', 'spring', 'summer']
+        self.season = self.season_list[self.season_initial]
+        print("The season is", self.season)
+        
         self.size = size # Tree Size
         self.grid = np.empty((size+2, size+2), dtype=object)
 
@@ -90,7 +97,7 @@ class Forest:
                     if self.grid[i, j].survival_roll() == False:
                         self.grid[i, j] = None # Kills the tree instance
                     else:
-                        self.grid[i, j].grow()
+                        self.grid[i, j].grow(forest_season=self.season)
 
     def update_gene_pools(self):
         """
@@ -119,10 +126,19 @@ class Forest:
                     current_gene_pool = self.gene_pools[species]
                     if len(current_gene_pool) < 2:
                         # Not enough parents
+                        print(species, "is extinct or near.")
                         continue
                     # Create a child tree from gene pool
                     child_genes = self.genetic_algorithm.generate_children(current_gene_pool, 1)[0]
                     self.grid[i, j] = SPECIES_CLASS[species](genes=child_genes)
+    
+    def update_season(self):
+        old_season = self.season
+        season_index = int(self.season_initial + np.floor(self.gen/self.season_length)) % 4
+        self.season = self.season_list[season_index]
+        if old_season != self.season:
+            print("New season is ", self.season)
+
                 
     
     def step(self):
@@ -132,3 +148,5 @@ class Forest:
         self.update_shadows()
         self.death_or_growth()
         self.spawn_new_trees()
+        self.update_season()
+        self.gen += 1
