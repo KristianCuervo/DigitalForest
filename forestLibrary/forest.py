@@ -2,16 +2,13 @@ import numpy as np
 from .tree import Tree
 import random as random
 from .geneticAlgorithm import GeneticAlgorithm
-from .species_genes import SPECIES_DEFAULT_PARAMS, get_species_params
-from .species import HondaTree, PineTree, BushTree, FernTree, BinaryTree, StochasticTree
+from .species_genes import SPECIES_DEFAULT_PARAMS, reduced_SPECIES, get_species_params
+from .species import HondaTree, ShrubTree, PineTree
 
 SPECIES_CLASS = {
     "honda"      : HondaTree,
-    "pine"       : PineTree,
-    "bush"       : BushTree,
-    "fern"       : FernTree,
-    "binary"     : BinaryTree,
-    "stochastic" : StochasticTree,
+    "shrub"      : ShrubTree,
+    "pine"       : PineTree
 }
 
 
@@ -49,7 +46,7 @@ class Forest:
                 if np.random.rand() < self.initial_population:
                     # Given a wanted population probability distribution, spawn random trees
                     species_name = random.choice(self.active_species)
-                    genes = get_species_params(species_name)
+                    genes = get_species_params(species_name, param_dict=reduced_SPECIES)
                     self.grid[i, j] = SPECIES_CLASS[species_name](genes=genes)
 
     def update_sunlight(self):
@@ -120,6 +117,9 @@ class Forest:
                 if self.grid[i, j] is None and np.random.rand() < self.spawn_probability:
                     species = random.choice(list(self.gene_pools.keys()))
                     current_gene_pool = self.gene_pools[species]
+                    if len(current_gene_pool) < 2:
+                        # Not enough parents
+                        continue
                     # Create a child tree from gene pool
                     child_genes = self.genetic_algorithm.generate_children(current_gene_pool, 1)[0]
                     self.grid[i, j] = SPECIES_CLASS[species](genes=child_genes)

@@ -68,7 +68,7 @@ class Tree:
         S(h, w) = alpha*h + beta*w + gamma*sqrt(h*w)
         where h is the height and w is the width of the tree. 
         """
-        alpha = 1
+        alpha = 3
         beta = 1
         gamma = 1
         return alpha*self.height + beta*self.width + gamma*np.sqrt(self.height*self.width)
@@ -79,7 +79,7 @@ class Tree:
         """
         The tree dies with an increasing probability as it ages.
         """
-        chance_of_death = (self.age**3 / 100)
+        chance_of_death = (self.age**2 / 100)
         if np.random.rand() < chance_of_death:
             return True
         return False
