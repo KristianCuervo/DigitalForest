@@ -2,9 +2,6 @@ import numpy as np
 from numpy import eye, array, zeros
 from math import cos, sin, pi
 
-# --------------------------------------------------------------------------
-# 3D Turtle & L‑System Interpreter
-# --------------------------------------------------------------------------
 def rotation_matrix(angle, axis):
     R = eye(4, dtype=float)
     i1, i2 = (axis + 1) % 3, (axis + 2) % 3
@@ -27,9 +24,9 @@ class SpaceTurtle:
     - push/pop:  stack state
     - set_width(w): thickness
     """
-    def __init__(self):
+    def __init__(self, init_width):
         self.T = eye(4, dtype=float)
-        self.w = 0.0
+        self.w = init_width
         self.stack = []
 
     def push(self):
@@ -64,7 +61,7 @@ def realize(symbols):
       edges  : list of (child_idx, parent_idx)
       radii  : (N,) array of segment widths
     """
-    turtle = SpaceTurtle()
+    turtle = SpaceTurtle(init_width=symbols[0][1])
     verts   = [turtle.get_pos()]
     edges   = []
     radii   = {0: turtle.w}
@@ -101,4 +98,7 @@ def realize(symbols):
     for idx, w in radii.items():
         R[idx] = w
 
+    #print("Inside turtle")
+    #print(R)
+    print(verts)
     return verts, edges, R
