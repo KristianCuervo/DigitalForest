@@ -1,6 +1,6 @@
 import sys
 import os
-parent_dir = os.path.abspath( __file__ ).rsplit( '/', 1 )[0]
+parent_dir = os.path.abspath(__file__).rsplit('\\', 1)[0]
 sys.path.append( f"{parent_dir}/forestLibrary" )
 sys.path.append(r'\\wsl.localhost\Ubuntu-24.04\home\kristiancuervo\DigitalForest')
 
@@ -51,33 +51,6 @@ def get_or_create_collection(collection_name: str, parent_collection=None) -> bp
     return col
 
 
-def initialize_blender_cells(size: tuple[int, int],
-                             spacing: float = 5.0,
-                             collection_name: str = "Cells"):
-    """
-    Place a CURVE object at every grid coordinate so the layout is visible
-    in the viewport (optional, but handy while modelling).
-    """
-    # First, safely remove any existing cells collection
-    col = bpy.data.collections.get(collection_name)
-    if col is None:
-        col = bpy.data.collections.new(collection_name)
-        bpy.context.scene.collection.children.link(col)
-    else:
-        for obj in list(col.objects):
-            bpy.data.objects.remove(obj, do_unlink=True)
-
-    for i in range(size[0]):
-        for j in range(size[1]):
-            curve = bpy.data.curves.new(f"cell_{i}_{j}", type='CURVE')
-            curve.dimensions = '3D'
-            spl = curve.splines.new('POLY')
-            spl.points.add(0)                       # single dummy point
-            spl.points[0].co = (0, 0, 0, 1)
-
-            obj = bpy.data.objects.new(f"cell_{i}_{j}", curve)
-            obj.location = (i * spacing, 0.0, j * spacing)
-            col.objects.link(obj)
 
 
 def tree_to_curve(tree: Tree,
@@ -91,19 +64,28 @@ def tree_to_curve(tree: Tree,
     verts, edges, radii = realize(tree.lsystem)
     #print("Inside tree_to_curve")
     #print(radii)
-    #offset = np.array([i * spacing, 0.0, j * spacing])
-    offset = 0
+    offset = np.array([i * spacing, 0.0, j * spacing])
+    #offset = 0
     curve = bpy.data.curves.new(f"tree_{i}_{j}", type='CURVE')
     curve.dimensions = '3D'
 
-    for v0, v1 in edges:
+    for v1, v0 in edges:
         spl = curve.splines.new('POLY')
         spl.points.add(1)                            # two points total
-        spl.points[0].co = *(verts[v0] + offset), 1.0
+        spl.points[0].co = [*(verts[v0] + offset)]+ [1.0]
         spl.points[0].radius = radii[v0]
-        spl.points[1].co = *(verts[v1] + offset), 1.0
+        spl.points[1].co = [*(verts[v1] + offset)]+ [1.0]
         spl.points[1].radius = radii[v1]
-
+        spl.tanget
+    
+    for n, spline in enumerate(curve.splines):
+        print(f"Spline number {n} of type {spline.type}")
+        if spline.type == 'BEZIER':
+            for i, point in enumerate(spline.bezier_points):
+                print(f"Point {i}: {point.co}")
+        else:  # Poly, NURBS
+            for i, point in enumerate(spline.points):
+                print(f"Point {i}: {point.co}")
     return curve
 
 
@@ -166,7 +148,6 @@ def main():
                     species_subset=chosen_species)
 
     # Optional helpers to see the grid layout while the sim runs
-    initialize_blender_cells((forest.size, forest.size), spacing=spacing)
 
     # Clean master collection - using improved collection handling
     master_col = bpy.data.collections.get("Generations")
