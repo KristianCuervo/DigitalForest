@@ -8,7 +8,7 @@ def main():
 
     total_generations = 100
    
-    forest = Forest(size=5, initial_population=1.0, spawn_probability=0.1, species_subset=["honda"])
+    forest = Forest(size=20, initial_population=0.5, spawn_probability=0.25, species_subset=["honda", "pine", "shrub"])
 
     for gen in range(total_generations):
         forest.step()                                      

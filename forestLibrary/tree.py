@@ -17,21 +17,22 @@ class Tree:
 
         # compute initial geometry + sunlight
         self._update_geometry()
-        self.sunlight = self.sunlight_intake()
+        #self.sunlight = self.sunlight_intake()
     
      # ----------------- L-SYSTEM  -----------------
     def production_rule(self, sym):
         """Must be overridden by subclasses."""
         return [sym]             # default: no rewrite
     
-    def grow(self):
-        grown_lsystem = []
-        for sym in self.lsystem:
-            grown_lsystem += self.production_rule(sym)
-        self.lsystem = grown_lsystem
-        self.age += 1
-        self._update_geometry()
-        self.sunlight = self.sunlight_intake()
+    def grow(self, forest_season):
+        if self.age <= 10: # Stops growing at age 10 (mainly to prevent micro-branches and lag)
+            grown_lsystem = []
+            for sym in self.lsystem:
+                grown_lsystem += self.production_rule(sym)
+            self.lsystem = grown_lsystem
+            self._update_geometry()
+            self.sunlight = self.sunlight_intake(season=forest_season)
+        self.age += 1      # Age still increases if it stops growing
 
     
     def _update_geometry(self):
@@ -62,15 +63,40 @@ class Tree:
                             z_vals.max()-z_vals.min()))
 
     # ----------------- FITNESS  -----------------
-    def sunlight_intake(self):
+    def sunlight_intake(self, season):
         """
         Fitness function of each of the trees.
         S(h, w) = alpha*h + beta*w + gamma*sqrt(h*w)
         where h is the height and w is the width of the tree. 
+        alpha --> tall factor
+        beta --> wide factor
+        gamma --> square factor
+
+
         """
-        alpha = 1
-        beta = 1
-        gamma = 1
+        alpha = None
+        beta = None
+        gamma = None
+        if season == "summer":
+            # The light comes from high up in the summer, penetrates far into the forest and benefits wide trees.
+            alpha = 0.25
+            beta = 2.5
+            gamma = 1.5
+
+        elif season == "autumn" or season == "spring":
+            # Intermediate lighting condition. Doesn't prioritise tall nor wide trees
+            alpha = 0.5
+            beta =  1.6
+            gamma = 2
+            pass
+
+        elif season == "winter":
+            # The light comes from a shallow angle in winter. It is better to be taller at this point.
+            alpha = 0.75
+            beta = 0.5
+            gamma = 1
+            pass
+        
         return alpha*self.height + beta*self.width + gamma*np.sqrt(self.height*self.width)
     
 
@@ -79,7 +105,9 @@ class Tree:
         """
         The tree dies with an increasing probability as it ages.
         """
-        chance_of_death = (self.age**2 / 100)
+
+        chance_of_death = (self.age / 100)
+
         if np.random.rand() < chance_of_death:
             return True
         return False
@@ -89,9 +117,7 @@ class Tree:
         The tree dies if it does not meet the survival requirements.
         The larger a tree is, the more sunlight it needs to survive. 
         """
-        if self.age > 1:
-            pass
-        effective_size = self.height * self.width # Some function of size
+        effective_size = (self.height * (self.width)**2)**0.7 # h*w**2: volume bounding box
         self.survival_requirement = (self.shadow + effective_size)
         
         # The tree dies if it does not get enough sunlight

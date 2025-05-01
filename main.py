@@ -4,11 +4,16 @@ from forestLibrary.visual import build_forest_graph
 from pygel3d import gl_display as gl
 
 def main():
-    # Simulation Parameters
-    total_generations = 2
-    delay            = 1.0
-    spacing          = 1.0
+
+    total_generations = 365
+    delay            = 0.05
+    spacing          = 2.0
+
+    # 1) Create viewer once (no display yet)
     viewer = gl.Viewer()
+
+    # 2) Set up your forest
+    forest = Forest(size=10, initial_population=0.5, spawn_probability=0.25, species_subset=['honda', 'pine', 'shrub'])
 
 
     # Initialize the forest

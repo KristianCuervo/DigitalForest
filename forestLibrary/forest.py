@@ -2,16 +2,13 @@ import numpy as np
 from .tree import Tree
 import random as random
 from .geneticAlgorithm import GeneticAlgorithm
-from .species_genes import SPECIES_DEFAULT_PARAMS, get_species_params
-from .species import HondaTree, PineTree, BushTree, FernTree, BinaryTree, StochasticTree
+from .species_genes import SPECIES_DEFAULT_PARAMS, reduced_SPECIES, get_species_params
+from .species import HondaTree, ShrubTree, PineTree
 
 SPECIES_CLASS = {
     "honda"      : HondaTree,
-    "pine"       : PineTree,
-    "bush"       : BushTree,
-    "fern"       : FernTree,
-    "binary"     : BinaryTree,
-    "stochastic" : StochasticTree,
+    "shrub"      : ShrubTree,
+    "pine"       : PineTree
 }
 
 
@@ -19,6 +16,13 @@ SPECIES_CLASS = {
 class Forest:
     def __init__(self, size:int, initial_population:float=0.5, spawn_probability:float=0.15, species_subset: list[str] | None = None):
         # Forest is a grid of trees with boundaries of None values
+        self.gen = 0
+        self.season_initial = 2
+        self.season_length = 90
+        self.season_list = ['autumn', 'winter', 'spring', 'summer']
+        self.season = self.season_list[self.season_initial]
+        print("The season is", self.season)
+        
         self.size = size # Tree Size
         self.grid = np.empty((size+2, size+2), dtype=object)
 
@@ -49,7 +53,7 @@ class Forest:
                 if np.random.rand() < self.initial_population:
                     # Given a wanted population probability distribution, spawn random trees
                     species_name = random.choice(self.active_species)
-                    genes = get_species_params(species_name)
+                    genes = get_species_params(species_name, param_dict=reduced_SPECIES)
                     self.grid[i, j] = SPECIES_CLASS[species_name](genes=genes)
 
     def update_sunlight(self):
@@ -93,7 +97,7 @@ class Forest:
                     if self.grid[i, j].survival_roll() == False:
                         self.grid[i, j] = None # Kills the tree instance
                     else:
-                        self.grid[i, j].grow()
+                        self.grid[i, j].grow(forest_season=self.season)
 
     def update_gene_pools(self):
         """
@@ -120,9 +124,21 @@ class Forest:
                 if self.grid[i, j] is None and np.random.rand() < self.spawn_probability:
                     species = random.choice(list(self.gene_pools.keys()))
                     current_gene_pool = self.gene_pools[species]
+                    if len(current_gene_pool) < 2:
+                        # Not enough parents
+                        print(species, "is extinct or near.")
+                        continue
                     # Create a child tree from gene pool
                     child_genes = self.genetic_algorithm.generate_children(current_gene_pool, 1)[0]
                     self.grid[i, j] = SPECIES_CLASS[species](genes=child_genes)
+    
+    def update_season(self):
+        old_season = self.season
+        season_index = int(self.season_initial + np.floor(self.gen/self.season_length)) % 4
+        self.season = self.season_list[season_index]
+        if old_season != self.season:
+            print("New season is ", self.season)
+
                 
     
     def step(self):
@@ -132,3 +148,5 @@ class Forest:
         self.update_shadows()
         self.death_or_growth()
         self.spawn_new_trees()
+        self.update_season()
+        self.gen += 1
