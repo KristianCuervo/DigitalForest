@@ -97,8 +97,4 @@ def realize(symbols):
     R     = zeros(len(verts), dtype=float)
     for idx, w in radii.items():
         R[idx] = w
-
-    #print("Inside turtle")
-    #print(R)
-    print(verts)
     return verts, edges, R

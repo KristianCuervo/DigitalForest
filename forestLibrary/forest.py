@@ -17,7 +17,7 @@ class Forest:
     def __init__(self, size:int, initial_population:float=0.5, spawn_probability:float=0.15, species_subset: list[str] | None = None):
         # Forest is a grid of trees with boundaries of None values
         self.gen = 0
-        self.season_initial = 2
+        self.season_initial = 0
         self.season_length = 90
         self.season_list = ['autumn', 'winter', 'spring', 'summer']
         self.season = self.season_list[self.season_initial]

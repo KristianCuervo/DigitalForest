@@ -25,7 +25,7 @@ class Tree:
         return [sym]             # default: no rewrite
     
     def grow(self, forest_season):
-        if self.age <= 10: # Stops growing at age 10 (mainly to prevent micro-branches and lag)
+        if self.age <= 8: # Stops growing at age 10 (mainly to prevent micro-branches and lag)
             grown_lsystem = []
             for sym in self.lsystem:
                 grown_lsystem += self.production_rule(sym)
@@ -80,19 +80,19 @@ class Tree:
         if season == "summer":
             # The light comes from high up in the summer, penetrates far into the forest and benefits wide trees.
             alpha = 0.25
-            beta = 2.5
-            gamma = 1.5
+            beta = 2.0
+            gamma = 1.0
 
         elif season == "autumn" or season == "spring":
             # Intermediate lighting condition. Doesn't prioritise tall nor wide trees
             alpha = 0.5
-            beta =  1.6
-            gamma = 2
+            beta =  1.5
+            gamma = 1.5
             pass
 
         elif season == "winter":
             # The light comes from a shallow angle in winter. It is better to be taller at this point.
-            alpha = 0.75
+            alpha = 1.0
             beta = 0.5
             gamma = 1
             pass
@@ -117,7 +117,7 @@ class Tree:
         The tree dies if it does not meet the survival requirements.
         The larger a tree is, the more sunlight it needs to survive. 
         """
-        effective_size = (self.height * (self.width)**2)**0.7 # h*w**2: volume bounding box
+        effective_size = (self.height * (self.width)**2)**2 # h*w**2: volume bounding box
         self.survival_requirement = (self.shadow + effective_size)
         
         # The tree dies if it does not get enough sunlight

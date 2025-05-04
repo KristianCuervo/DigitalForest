@@ -7,7 +7,7 @@ def main():
 
     total_generations = 365
     delay            = 0.05
-    spacing          = 2.0
+    spacing          = 4.0
 
     # 1) Create viewer once (no display yet)
     viewer = gl.Viewer()
@@ -15,9 +15,6 @@ def main():
     # 2) Set up your forest
     forest = Forest(size=10, initial_population=0.5, spawn_probability=0.25, species_subset=['honda', 'pine', 'shrub'])
 
-
-    # Initialize the forest
-    forest = Forest(size=10, initial_population=0.5, spawn_probability=0.25, species_subset=["honda", "bush"])
 
     # Simulation loop
     for gen in range(total_generations):

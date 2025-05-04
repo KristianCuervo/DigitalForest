@@ -128,9 +128,9 @@ def clean_animation_instance_objects(pattern="GenInst_"):
 # ─────────────────────────────────────────────────────────────────────────────
 def main():
     # Simulation / animation parameters
-    total_generations = 100           # becomes frame_end (frames 0 … 99)
+    total_generations = 80           # becomes frame_end (frames 0 … 99)
     spacing = 1.0
-    chosen_species = ["honda"]
+    chosen_species = ["honda", "pine", "shrub"]
 
     # First, remove any existing animation instances to avoid conflicts
     clean_animation_instance_objects()
@@ -142,7 +142,7 @@ def main():
         return
     
     # Create forest simulation - using size=2 as in the updated version
-    forest = Forest(size=2,
+    forest = Forest(size=5,
                     initial_population=0.5,
                     spawn_probability=0.25,
                     species_subset=chosen_species)

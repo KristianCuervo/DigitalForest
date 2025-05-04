@@ -3,7 +3,7 @@ from .tree import Tree
 
 class HondaTree(Tree):
     def __init__(self, genes):
-        axiom = [('A', 1.0, 0.3)]
+        axiom = [('A', 0.7, 0.3)]
         super().__init__(genes, axiom=axiom)
 
     def production_rule(self, sym):
