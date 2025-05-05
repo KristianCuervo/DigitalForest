@@ -174,9 +174,9 @@ def clean_animation_instance_objects(pattern="GenInst_"):
 def main():
     # Simulation / animation parameters
     total_generations = 25          # becomes frame_end (frames 0 … 99)
-    spacing = 2.5
+    spacing = 1
     chosen_species = ["honda"]#, "pine", "shrub"]
-    generation_to_frames_ratio = 60
+    generation_to_frames_ratio = 30
 
     # First, remove any existing animation instances to avoid conflicts
     #clean_animation_instance_objects()
@@ -244,9 +244,9 @@ def main():
                 geo_mod = obj.modifiers[modifier_name]
                 
                 # Define animation parameters
-                start_frame = (1+gen-tree_age) * generation_to_frames_ratio
+                start_frame = (2+gen-tree_age) * generation_to_frames_ratio
                 end_frame = gen * generation_to_frames_ratio
-                death_frame = (gen+1) * generation_to_frames_ratio
+                death_frame = (gen+2) * generation_to_frames_ratio
                 start_value = 0.0
                 end_value = 1.0
                 death_value = 0.0
