@@ -39,6 +39,8 @@ class Forest:
         # Genetic algorithm is used to create new trees from the gene pools
         self.spawn_probability = spawn_probability
         self.genetic_algorithm = GeneticAlgorithm(mutation_rate=0.2, mutation_strength=0.1)
+        
+        self.death_pool = np.empty((size+2, size+2), dtype=object)
     
     def initial_spawn(self):
         """
@@ -95,6 +97,7 @@ class Forest:
             for j in range(1, self.size+1):
                 if self.grid[i, j] is not None:
                     if self.grid[i, j].survival_roll() == False:
+                        self.death_pool[i, j] = self.grid[i, j] # adds the final tree state before its death to a pool for rendering
                         self.grid[i, j] = None # Kills the tree instance
                     else:
                         self.grid[i, j].grow(forest_season=self.season)
@@ -139,7 +142,13 @@ class Forest:
         if old_season != self.season:
             print("New season is ", self.season)
 
-                
+    def reached_termination(self, i, j):
+        tree_in_terminal_state = self.death_pool[i,j]
+        if tree_in_terminal_state is not None:
+            self.death_pool[i,j] = None
+            return tree_in_terminal_state
+        else:
+            return None
     
     def step(self):
         """
