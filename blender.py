@@ -1,7 +1,7 @@
 import sys
 import os
-parent_dir = os.path.abspath(__file__).rsplit('\\', 1)[0]
-sys.path.append( f"{parent_dir}/forestLibrary" )
+parent_dir = os.path.abspath(__file__).rsplit('\\', 2)[0]
+sys.path.append( f"{parent_dir}" )
 sys.path.append(r'\\wsl.localhost\Ubuntu-24.04\home\kristiancuervo\DigitalForest')
 
 import bpy
@@ -60,32 +60,77 @@ def tree_to_curve(tree: Tree,
                   spacing: float = 5.0) -> bpy.types.Curve:
     """
     Convert an L-system tree into a standalone 3-D CURVE datablock.
+    Creates continuous splines from root to each leaf for better animation.
     """
     verts, edges, radii = realize(tree.lsystem)
-    #print("Inside tree_to_curve")
-    #print(radii)
     offset = np.array([i * spacing, 0.0, j * spacing])
-    #offset = 0
+    
     curve = bpy.data.curves.new(f"tree_{i}_{j}", type='CURVE')
     curve.dimensions = '3D'
-
-    for v1, v0 in edges:
-        spl = curve.splines.new('POLY')
-        spl.points.add(1)                            # two points total
-        spl.points[0].co = [*(verts[v0] + offset)]+ [1.0]
-        spl.points[0].radius = radii[v0]
-        spl.points[1].co = [*(verts[v1] + offset)]+ [1.0]
-        spl.points[1].radius = radii[v1]
-        spl.tanget
     
-    for n, spline in enumerate(curve.splines):
-        print(f"Spline number {n} of type {spline.type}")
-        if spline.type == 'BEZIER':
-            for i, point in enumerate(spline.bezier_points):
-                print(f"Point {i}: {point.co}")
-        else:  # Poly, NURBS
-            for i, point in enumerate(spline.points):
-                print(f"Point {i}: {point.co}")
+    # Build parent lookup (child -> parent)
+    parent_map = {}
+    for v1, v0 in edges:
+        parent_map[v1] = v0
+    
+    # Build adjacency list (parent -> [children])
+    adjacency_list = {}
+    for i in range(len(verts)):
+        adjacency_list[i] = []
+    
+    for v1, v0 in edges:
+        adjacency_list[v0].append(v1)
+    
+    # Find all leaf nodes (nodes with no children)
+    leaf_nodes = []
+    for i in range(len(verts)):
+        if i in adjacency_list and len(adjacency_list[i]) == 0:
+            leaf_nodes.append(i)
+    
+    # Trace path from each leaf back to root
+    def trace_path_to_root(node):
+        path = [node]
+        current = node
+        
+        # Follow parent references back to root
+        while current in parent_map:
+            current = parent_map[current]
+            path.append(current)
+        
+        # Reverse to get path from root to leaf
+        return path[::-1]
+    
+    # Generate all root-to-leaf paths
+    paths = [trace_path_to_root(leaf) for leaf in leaf_nodes]
+    
+    # Create splines from paths
+    for path_idx, path in enumerate(paths):
+        if len(path) < 2:
+            continue  # Skip paths that are too short
+            
+        # Create a new spline for this path
+        spl = curve.splines.new('POLY')
+        
+        # Add points for all vertices in the path
+        spl.points.add(len(path) - 1)  # Already has 1 point by default
+        
+        # Set the coordinates and radius for each point
+        for point_idx, vert_idx in enumerate(path):
+            # Set coordinates (x, y, z, w) where w is the homogeneous coordinate (1.0)
+            spl.points[point_idx].co = [*(verts[vert_idx] + offset)] + [1.0]
+            # Set radius
+            spl.points[point_idx].radius = radii[vert_idx]
+    
+    # Debug output
+    #for n, spline in enumerate(curve.splines):
+    #    print(f"Spline number {n} of type {spline.type}")
+    #    if spline.type == 'BEZIER':
+    #        for i, point in enumerate(spline.bezier_points):
+    #            print(f"Point {i}: {point.co}")
+    #    else:  # Poly, NURBS
+    #        for i, point in enumerate(spline.points):
+    #            print(f"Point {i}: {point.co}")
+                
     return curve
 
 
@@ -128,12 +173,13 @@ def clean_animation_instance_objects(pattern="GenInst_"):
 # ─────────────────────────────────────────────────────────────────────────────
 def main():
     # Simulation / animation parameters
-    total_generations = 80           # becomes frame_end (frames 0 … 99)
-    spacing = 1.0
-    chosen_species = ["honda", "pine", "shrub"]
+    total_generations = 25          # becomes frame_end (frames 0 … 99)
+    spacing = 2.5
+    chosen_species = ["honda"]#, "pine", "shrub"]
+    generation_to_frames_ratio = 60
 
     # First, remove any existing animation instances to avoid conflicts
-    clean_animation_instance_objects()
+    #clean_animation_instance_objects()
 
     # Initialize geometry nodes
     geonodes = init_blender_geonodes(chosen_species)
@@ -158,75 +204,73 @@ def main():
         for sub in list(master_col.children):
             bpy.data.collections.remove(sub, do_unlink=True)
 
+    ## Create a collection for all posible generations
+    for gen in range(total_generations):
+        gen_col = bpy.data.collections.new(f"Gen_{gen+1:03d}")
+        master_col.children.link(gen_col)
+    
+    
     # ── Bake every generation to its own collection ────────────────────────
     for gen in range(total_generations):
         print(f"Processing generation {gen}/{total_generations-1}...")
         forest.step()
-
-        # Sub-collection holding *real* curve objects for this generation
-        gen_col = bpy.data.collections.new(f"Gen_{gen:03d}")
-        master_col.children.link(gen_col)
-
+        
         for i in range(1, forest.size + 1):
             for j in range(1, forest.size + 1):
-                tree = forest.grid[i, j]
-                if tree is None:
+                tree_final_state = forest.reached_termination(i, j)
+                
+                if tree_final_state is None:
                     continue
-
-                curve = tree_to_curve(tree, i - 1, j - 1, spacing=spacing)
+                
+                tree_age = tree_final_state.age
+                
+                curve = tree_to_curve(tree_final_state, i - 1, j - 1, spacing=spacing)
                 obj_name = f"tree_{i-1}_{j-1}_g{gen:03d}"
                 obj = bpy.data.objects.new(obj_name, curve)
                 obj.location = ((i - 1) * spacing, 0.0, (j - 1) * spacing)
                 
-                # Only add modifier if the species has a valid geometry node group
-                if tree.genes['species'] in geonodes:
-                    mod = obj.modifiers.new(f"geoNode_{tree.genes['species']}_{obj_name}", 'NODES')
-                    mod.node_group = geonodes[tree.genes['species']]
+                
+                modifier_name = f"geoNode_{tree_final_state.genes['species']}_{obj_name}"
+                if tree_final_state.genes['species'] in geonodes:
+                    mod = obj.modifiers.new(modifier_name, 'NODES')
+                    mod.node_group = geonodes[tree_final_state.genes['species']]
+                
+                generation_name = f"Gen_{(2+gen-tree_age):03d}"
+                gen_col = bpy.data.collections[generation_name]
+                
                 gen_col.objects.link(obj)
+                
+                
+                geo_mod = obj.modifiers[modifier_name]
+                
+                # Define animation parameters
+                start_frame = (1+gen-tree_age) * generation_to_frames_ratio
+                end_frame = gen * generation_to_frames_ratio
+                death_frame = (gen+1) * generation_to_frames_ratio
+                start_value = 0.0
+                end_value = 1.0
+                death_value = 0.0
 
-        # ── Create an instance and keyframe its visibility ─────────────────
-        inst = bpy.data.objects.new(f"GenInst_{gen:03d}", None)
-        inst.instance_type = 'COLLECTION'
-        inst.instance_collection = gen_col
-        bpy.context.scene.collection.objects.link(inst)
+                # Target input - access the input by name 
+                # (First find the correct input name that you want to animate)
+                input_name = "Socket_5" # aka "growth ratio"
 
-        # Three key-frames ensure the instance is visible ONLY on frame `gen`
-        start_hide = gen - 1 if gen > 0 else 0  # avoid negative frames
+                # Set up animation keyframes
+                bpy.context.scene.frame_set(start_frame)
+                geo_mod[input_name] = start_value
+                geo_mod.keyframe_insert(data_path=f'["{input_name}"]', frame=start_frame)
 
-        # Check if animation data exists, create if not
-        if not inst.animation_data:
-            inst.animation_data_create()
-
-        # hidden before its own frame
-        inst.hide_viewport = True
-        inst.hide_render = True
-        inst.keyframe_insert("hide_viewport", frame=start_hide)
-        inst.keyframe_insert("hide_render", frame=start_hide)
-
-        # shown on its frame
-        inst.hide_viewport = False
-        inst.hide_render = False
-        inst.keyframe_insert("hide_viewport", frame=gen)
-        inst.keyframe_insert("hide_render", frame=gen)
-
-        # hidden afterwards
-        inst.hide_viewport = True
-        inst.hide_render = True
-        inst.keyframe_insert("hide_viewport", frame=gen + 1)
-        inst.keyframe_insert("hide_render", frame=gen + 1)
-
-        # Check if animation data and action exist before modifying
-        if inst.animation_data and inst.animation_data.action:
-            # constant (step) interpolation so visibility jumps, not fades
-            for fc in inst.animation_data.action.fcurves:
-                for kp in fc.keyframe_points:
-                    kp.interpolation = 'CONSTANT'
-
-    # Scene framing so the play-head covers the whole simulation
-    scene = bpy.context.scene
-    scene.frame_start = 0
-    scene.frame_end = total_generations - 1
-    scene.frame_set(0)
+                bpy.context.scene.frame_set(end_frame)
+                geo_mod[input_name] = end_value
+                geo_mod.keyframe_insert(data_path=f'["{input_name}"]', frame=end_frame)
+                
+                bpy.context.scene.frame_set(death_frame)
+                geo_mod[input_name] = death_value
+                geo_mod.keyframe_insert(data_path=f'["{input_name}"]', frame=death_frame)
+                
+                
+                    
+           
 
     print(f"Forest simulation complete with {total_generations} generations.")
 
