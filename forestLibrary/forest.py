@@ -7,6 +7,8 @@ from .species import HondaTree, ShrubTree, PineTree
 
 SPECIES_CLASS = {
     "honda"      : HondaTree,
+    "oak"        : HondaTree,
+    "birch"      : HondaTree,
     "shrub"      : ShrubTree,
     "pine"       : PineTree
 }

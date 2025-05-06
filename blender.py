@@ -9,7 +9,7 @@ import numpy as np
 from forestLibrary.forest import Forest
 from forestLibrary.tree import Tree
 from forestLibrary.lsystem_utils import realize
-from forestLibrary.species_genes import SPECIES_DEFAULT_PARAMS
+from forestLibrary.species_genes import SPECIES_DEFAULT_PARAMS, reduced_SPECIES
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -63,74 +63,67 @@ def tree_to_curve(tree: Tree,
     Creates continuous splines from root to each leaf for better animation.
     """
     verts, edges, radii = realize(tree.lsystem)
-    offset = np.array([i * spacing, 0.0, j * spacing])
     
+    # Update offset to position trees in the X-Y plane (since Z is now up)
+    offset = np.array([0, 0, 0.0], dtype=float)
+   
     curve = bpy.data.curves.new(f"tree_{i}_{j}", type='CURVE')
     curve.dimensions = '3D'
-    
+   
     # Build parent lookup (child -> parent)
     parent_map = {}
     for v1, v0 in edges:
         parent_map[v1] = v0
-    
+   
     # Build adjacency list (parent -> [children])
     adjacency_list = {}
     for i in range(len(verts)):
         adjacency_list[i] = []
-    
+   
     for v1, v0 in edges:
         adjacency_list[v0].append(v1)
-    
+   
     # Find all leaf nodes (nodes with no children)
     leaf_nodes = []
     for i in range(len(verts)):
         if i in adjacency_list and len(adjacency_list[i]) == 0:
             leaf_nodes.append(i)
-    
+   
     # Trace path from each leaf back to root
     def trace_path_to_root(node):
         path = [node]
         current = node
-        
+       
         # Follow parent references back to root
         while current in parent_map:
             current = parent_map[current]
             path.append(current)
-        
+       
         # Reverse to get path from root to leaf
         return path[::-1]
-    
+   
     # Generate all root-to-leaf paths
     paths = [trace_path_to_root(leaf) for leaf in leaf_nodes]
-    
+   
     # Create splines from paths
     for path_idx, path in enumerate(paths):
         if len(path) < 2:
             continue  # Skip paths that are too short
-            
+           
         # Create a new spline for this path
         spl = curve.splines.new('POLY')
-        
+       
         # Add points for all vertices in the path
         spl.points.add(len(path) - 1)  # Already has 1 point by default
-        
+       
         # Set the coordinates and radius for each point
         for point_idx, vert_idx in enumerate(path):
             # Set coordinates (x, y, z, w) where w is the homogeneous coordinate (1.0)
+            # No need to modify the vertex coordinates, as realize() now already produces Z-up coordinates
             spl.points[point_idx].co = [*(verts[vert_idx] + offset)] + [1.0]
             # Set radius
             spl.points[point_idx].radius = radii[vert_idx]
-    
-    # Debug output
-    #for n, spline in enumerate(curve.splines):
-    #    print(f"Spline number {n} of type {spline.type}")
-    #    if spline.type == 'BEZIER':
-    #        for i, point in enumerate(spline.bezier_points):
-    #            print(f"Point {i}: {point.co}")
-    #    else:  # Poly, NURBS
-    #        for i, point in enumerate(spline.points):
-    #            print(f"Point {i}: {point.co}")
-                
+   
     return curve
 
 
@@ -140,16 +133,20 @@ def init_blender_geonodes(species_subset=None):
     If no subset is provided, use all available species.
     """
     if species_subset is None:
-        species_subset = SPECIES_DEFAULT_PARAMS
+        species_subset = reduced_SPECIES
     
     geonodes = {}
     
-    for species_name in species_subset:
-        # Check if the node group exists before accessing it
-        if species_name in bpy.data.node_groups:
-            geonodes[species_name] = bpy.data.node_groups[species_name]
-        else:
-            print(f"Warning: Node group '{species_name}' not found in Blender")
+    for species_name, genes in reduced_SPECIES.items():
+        if species_name not in species_subset:
+            continue
+        for gene in genes:
+            if gene['species'] in bpy.data.node_groups:
+                geonodes[gene['species']] = bpy.data.node_groups[gene['species']]
+            else:
+                print(f"Warning: Node group '{gene['species']}' not found in Blender")
+
+         
     
     return geonodes
 
@@ -173,10 +170,10 @@ def clean_animation_instance_objects(pattern="GenInst_"):
 # ─────────────────────────────────────────────────────────────────────────────
 def main():
     # Simulation / animation parameters
-    total_generations = 25          # becomes frame_end (frames 0 … 99)
-    spacing = 1
-    chosen_species = ["honda"]#, "pine", "shrub"]
-    generation_to_frames_ratio = 30
+    total_generations = 365        # becomes frame_end (frames 0 … 99)
+    spacing = 2
+    chosen_species = ["honda"]#pine",]# , "shrub"]
+    generation_to_frames_ratio = 5
 
     # First, remove any existing animation instances to avoid conflicts
     #clean_animation_instance_objects()
@@ -225,9 +222,9 @@ def main():
                 tree_age = tree_final_state.age
                 
                 curve = tree_to_curve(tree_final_state, i - 1, j - 1, spacing=spacing)
-                obj_name = f"tree_{i-1}_{j-1}_g{gen:03d}"
+                obj_name = f"tree_{i-1}_{j-1}_g{(2+gen-tree_age):03d}"
                 obj = bpy.data.objects.new(obj_name, curve)
-                obj.location = ((i - 1) * spacing, 0.0, (j - 1) * spacing)
+                obj.location = ((i - 1) * spacing, (j - 1) * spacing, 0.0)
                 
                 
                 modifier_name = f"geoNode_{tree_final_state.genes['species']}_{obj_name}"
@@ -243,17 +240,21 @@ def main():
                 
                 geo_mod = obj.modifiers[modifier_name]
                 
-                # Define animation parameters
-                start_frame = (2+gen-tree_age) * generation_to_frames_ratio
+                # Calculate birth generation (when the tree first appeared)
+                birth_gen = gen - tree_age
+
+                # Calculate frame numbers based on birth generation
+                start_frame = max(1, birth_gen * generation_to_frames_ratio)
                 end_frame = gen * generation_to_frames_ratio
-                death_frame = (gen+2) * generation_to_frames_ratio
+                death_frame = (gen + 2) * generation_to_frames_ratio
+
+                # Set the animation values
                 start_value = 0.0
                 end_value = 1.0
                 death_value = 0.0
 
                 # Target input - access the input by name 
-                # (First find the correct input name that you want to animate)
-                input_name = "Socket_5" # aka "growth ratio"
+                input_name = "Socket_3"  # aka "growth ratio"
 
                 # Set up animation keyframes
                 bpy.context.scene.frame_set(start_frame)
@@ -263,7 +264,7 @@ def main():
                 bpy.context.scene.frame_set(end_frame)
                 geo_mod[input_name] = end_value
                 geo_mod.keyframe_insert(data_path=f'["{input_name}"]', frame=end_frame)
-                
+
                 bpy.context.scene.frame_set(death_frame)
                 geo_mod[input_name] = death_value
                 geo_mod.keyframe_insert(data_path=f'["{input_name}"]', frame=death_frame)
