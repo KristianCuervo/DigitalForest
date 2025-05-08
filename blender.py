@@ -174,6 +174,11 @@ def main():
     spacing = 2
     chosen_species = ["honda"]#pine",]# , "shrub"]
     generation_to_frames_ratio = 5
+    
+    blender_sockets = {
+        "birch": "Socket_3",
+        "oak": "Socket_7",
+    }
 
     # First, remove any existing animation instances to avoid conflicts
     #clean_animation_instance_objects()
@@ -254,7 +259,7 @@ def main():
                 death_value = 0.0
 
                 # Target input - access the input by name 
-                input_name = "Socket_3"  # aka "growth ratio"
+                input_name = blender_sockets[tree_final_state.genes['species']]  # aka "growth ratio"
 
                 # Set up animation keyframes
                 bpy.context.scene.frame_set(start_frame)
