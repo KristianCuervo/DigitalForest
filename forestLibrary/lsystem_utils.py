@@ -39,16 +39,16 @@ class SpaceTurtle:
         self.w = w
 
     def forward(self, d):
-        # Now moves along Y axis! (vertical growth)
-        self.T = self.T @ translation_matrix(array([0.0, d, 0.0], dtype=float))
-
+        # Modified to move along Z axis for vertical growth
+        self.T = self.T @ translation_matrix(array([0.0, 0.0, d], dtype=float))
+    
     def turn(self, a):
-        # yaw around X
-        self.T = self.T @ rotation_matrix(a, axis=0)
-
-    def roll(self, a):
-        # roll around Y
+        # yaw around Y (perpendicular to Z growth)
         self.T = self.T @ rotation_matrix(a, axis=1)
+    
+    def roll(self, a):
+        # roll around Z (along growth direction)
+        self.T = self.T @ rotation_matrix(a, axis=2)
 
     def get_pos(self):
         p = self.T @ array([0.0, 0.0, 0.0, 1.0], dtype=float)
