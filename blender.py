@@ -172,12 +172,13 @@ def main():
     # Simulation / animation parameters
     total_generations = 365        # becomes frame_end (frames 0 … 99)
     spacing = 2
-    chosen_species = ["honda"]#pine",]# , "shrub"]
+    chosen_species = ["pine",]# , "shrub"]
     generation_to_frames_ratio = 5
     
     blender_sockets = {
         "birch": "Socket_3",
         "oak": "Socket_7",
+        "pine": "Socket_3",
     }
 
     # First, remove any existing animation instances to avoid conflicts
