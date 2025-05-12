@@ -117,12 +117,12 @@ class Tree:
         The tree dies if it does not meet the survival requirements.
         The larger a tree is, the more sunlight it needs to survive. 
         """
-        effective_size = (self.height * (self.width)**2)**2 # h*w**2: volume bounding box
-        self.survival_requirement = (self.shadow + effective_size)
+        effective_size = (self.height * (self.width)**2)**0.25 # h*w**2: volume bounding box
+        self.survival_requirement = (self.shadow**0.5 + effective_size)
         
         # The tree dies if it does not get enough sunlight
-        #if self.sunlight < self.survival_requirement:
-        #    return False
+        if self.sunlight < self.survival_requirement:
+            return False
         
         # If the tree is not dead, check if it dies from old age
         if self.old_age_death_roll():
