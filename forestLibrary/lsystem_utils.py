@@ -98,3 +98,11 @@ def realize(symbols):
     for idx, w in radii.items():
         R[idx] = w
     return verts, edges, R
+
+def swap_verts_array_YZ(v):
+    """
+    Swaps the Y and Z coordinates of a 3D array of vertices.
+    """
+    v = np.array(v, dtype=float)
+    v[:, [1, 2]] = v[:, [2, 1]]
+    return v
