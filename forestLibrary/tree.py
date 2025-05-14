@@ -106,7 +106,10 @@ class Tree:
         The tree dies with an increasing probability as it ages.
         """
 
-        chance_of_death = (self.age / 100)
+        #chance_of_death = (self.age / 100)
+        #A way for sunlight shadow to impact survival chance, but this is a bad solution
+        chance_of_death = ((self.age * max({1, (self.shadow + 0.000001)/(self.sunlight + 0.000002)})) / 100)
+
 
         if np.random.rand() < chance_of_death:
             return True

@@ -2,6 +2,7 @@ import random
 from .tree import Tree
 
 class GeneticAlgorithm:
+    #with a rate of 0.75 and strength 0.5, you get some interesting results
     def __init__(self, mutation_rate=0.05, mutation_strength=0.1):
         self.mutation_rate = mutation_rate
         self.mutation_strength = mutation_strength
