@@ -147,7 +147,7 @@ def init_blender_geonodes(species_subset=None):
     return geonodes
 
 
-def animate_tree(tree_age, current_gen, generation_to_frames_ratio, obj, geo_mod, blender_sockets):
+def animate_tree(tree_final_state,tree_age, current_gen, generation_to_frames_ratio, obj, geo_mod, blender_sockets):
     """
     Animate the tree growth and death using keyframes.
     """
@@ -280,25 +280,28 @@ def set_up_terrain(noise_grid: np.ndarray, spacing: float = 1.0, scale: float = 
 def main():
     ### Set up simulation environment ###
 
-    total_generations = 365  # becomes frame_end (frames 0 … 99)
+    total_generations = 101  # becomes frame_end (frames 0 … 99)
     spacing = 2
     chosen_species = [
+        "honda",
         "pine",
-    ]  # , "shrub"]
+        #"shrub",
+    ]
 
     # Create forest simulation
     forest = Forest(
-        size=5,
+        size=50,
         initial_population=0.5,
         spawn_probability=0.25,
         species_subset=chosen_species,
+        scenario="temperate",
     )
 
     ### Set up Blender environment ###
 
     # Set up blender terrain
-    noise_grid = forest.noise_grid
-    set_up_terrain(noise_grid)
+    #noise_grid = forest.noise_grid
+    #set_up_terrain(noise_grid)
     
     # Set up Blender sockets for geometry nodes
     blender_sockets = {
@@ -359,6 +362,7 @@ def main():
 
                 # Animate the tree
                 animate_tree(
+                    tree_final_state,
                     tree_age,
                     gen,
                     generation_to_frames_ratio,
@@ -368,32 +372,32 @@ def main():
                 )
 
     # Add champion trees to the collection
-    champions = forest.campions
-    champions_position = (50.0, 50.0, 0.0)
-    set_up_champions(champions, spacing, champions_position)
+    #champions = forest.campions
+    #champions_position = (50.0, 50.0, 0.0)
+    #set_up_champions(champions, spacing, champions_position)
 
     print(f"Forest simulation complete with {total_generations} generations.")
 
 
 if __name__ == "__main__":
-    #main()
-    total_generations = 365  # becomes frame_end (frames 0 … 99)
-    spacing = 2
-    chosen_species = [
-        "pine",
-    ]  # , "shrub"]
-
-    # Create forest simulation
-    forest = Forest(
-        size=100,
-        initial_population=0.5,
-        spawn_probability=0.25,
-        species_subset=chosen_species,
-    )
-
-    ### Set up Blender environment ###
-
-    # Set up blender terrain
-    noise_grid = forest.noise_grid
-    print(noise_grid)
-    set_up_terrain(noise_grid)
+    main()
+    #total_generations = 365  # becomes frame_end (frames 0 … 99)
+    #spacing = 2
+    #chosen_species = [
+    #    "pine",
+    #]  # , "shrub"]
+#
+    ## Create forest simulation
+    #forest = Forest(
+    #    size=100,
+    #    initial_population=0.5,
+    #    spawn_probability=0.25,
+    #    species_subset=chosen_species,
+    #)
+#
+    #### Set up Blender environment ###
+#
+    ## Set up blender terrain
+    #noise_grid = forest.noise_grid
+    #print(noise_grid)
+    #set_up_terrain(noise_grid)

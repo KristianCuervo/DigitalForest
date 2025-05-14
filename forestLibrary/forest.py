@@ -34,6 +34,7 @@ class Forest:
 
         self.noise = Noise(3, 90)
         self.noise_grid = self.noise.compute_noise_grid(30, self.size+2)
+        self.noise_grid = np.ones((self.size+2, self.size+2))
         #print(self.noise_grid)
 
         # Forest is spawned on grid with random tree species
@@ -77,8 +78,7 @@ class Forest:
                     # Given a wanted population probability distribution, spawn random trees
                     species_name = random.choice(self.active_species)
                     genes = get_species_params(species_name, param_dict=reduced_SPECIES)
-                    self.grid[i, j] = SPECIES_CLASS[species_name](genes=genes)
-
+                    self.grid[i, j] = SPECIES_CLASS[species_name](height_mod=self.noise_grid[i,j], genes=genes)
 
     def update_sunlight(self):
         """
@@ -123,7 +123,7 @@ class Forest:
             for j in range(1, self.size+1):
                 if self.grid[i, j] is not None:
                     if self.grid[i, j].survival_roll(simulation_year=self.gen, scenario=self.scenario) == False:
-                        self.graveyard[self.grid[i,j].genes['species']].append(self.grid[i,j]) # Collects the tree instance in the graveyard
+                        #self.graveyard[self.grid[i,j].genes['species']].append(self.grid[i,j]) # Collects the tree instance in the graveyard
                         self.death_pool[i, j] = self.grid[i, j] # adds the final tree state before its death to a pool for rendering
 
                         self.grid[i, j] = None # Kills the tree instance
@@ -163,7 +163,7 @@ class Forest:
                     empty_cells = np.argwhere(self.grid == None) # Look at current empty cells
                     if len(empty_cells) > 0: # 
                         cell = random.choice(empty_cells) # Picks a random cell to spawn on 
-                        self.grid[cell[0], cell[1]] = SPECIES_CLASS[species](genes=child) # Spawns a child tree on tile
+                        self.grid[cell[0], cell[1]] = SPECIES_CLASS[species](height_mod=self.noise_grid[cell[0],cell[1]], genes=child) # Spawns a child tree on tile
                     else:
                         break # No empty cells to spawn a tree
             
@@ -215,8 +215,8 @@ class Forest:
         self.death_or_growth()
         self.spawn_new_trees()
 
-        if self.gen % 10 == 0:
-            self.record_champions()
+        #if self.gen % 10 == 0:
+            #self.record_champions()
         self.gen += 1
 
     
