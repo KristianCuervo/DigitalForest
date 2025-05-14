@@ -3,6 +3,8 @@ import os
 parent_dir = os.path.abspath(__file__).rsplit('\\', 2)[0]
 sys.path.append( f"{parent_dir}" )
 sys.path.append(r'\\wsl.localhost\Ubuntu-24.04\home\kristiancuervo\DigitalForest')
+sys.path.append(r'C:\Users\ago\my_code_priv\DTU\02563\DigitalForest')
+os.path.abspath(__file__)
 
 import bpy
 import numpy as np
@@ -51,11 +53,7 @@ def get_or_create_collection(collection_name: str, parent_collection=None) -> bp
     return col
 
 
-def tree_to_curve(tree: Tree,
-                  i: int,
-                  j: int,
-                  *,
-                  spacing: float = 5.0) -> bpy.types.Curve:
+def tree_to_curve(tree: Tree, i: int, j: int, *, spacing: float = 5.0) -> bpy.types.Curve:
     """
     Convert an L-system tree into a standalone 3-D CURVE datablock.
     Creates continuous splines from root to each leaf for better animation.
@@ -153,7 +151,7 @@ def animate_tree(tree_age, current_gen, generation_to_frames_ratio, obj, geo_mod
     """
     Animate the tree growth and death using keyframes.
     """
-    
+
     # Calculate birth generation (when the tree first appeared)
     birth_gen = current_gen - tree_age
 
@@ -166,8 +164,8 @@ def animate_tree(tree_age, current_gen, generation_to_frames_ratio, obj, geo_mod
     start_value = 0.0
     end_value = 1.0
     death_value = 0.0
-                
-    # Target input - access the input by name 
+
+    # Target input - access the input by name
     input_name = blender_sockets[tree_final_state.genes['species']]  # aka "growth ratio"
 
     # Set up animation keyframes
@@ -178,30 +176,29 @@ def animate_tree(tree_age, current_gen, generation_to_frames_ratio, obj, geo_mod
     bpy.context.scene.frame_set(end_frame)
     geo_mod[input_name] = end_value
     geo_mod.keyframe_insert(data_path=f'["{input_name}"]', frame=end_frame)
-    
+
     bpy.context.scene.frame_set(death_frame)
     geo_mod[input_name] = death_value
     geo_mod.keyframe_insert(data_path=f'["{input_name}"]', frame=death_frame)
-    
-    
+
     # Hide tree before it starts growing
     obj.hide_viewport = True
     obj.hide_render = True
     obj.keyframe_insert(data_path="hide_viewport", frame=start_frame - 1)
     obj.keyframe_insert(data_path="hide_render", frame=start_frame - 1)
-    
+
     # Show tree when growth starts
     obj.hide_viewport = False
     obj.hide_render = False
     obj.keyframe_insert(data_path="hide_viewport", frame=start_frame)
     obj.keyframe_insert(data_path="hide_render", frame=start_frame)
-    
+
     # Keep it visible through end_frame, then hide again
     obj.hide_viewport = False
     obj.hide_render = False
     obj.keyframe_insert(data_path="hide_viewport", frame=end_frame)
     obj.keyframe_insert(data_path="hide_render", frame=end_frame)
-    
+
     # Hide tree again after death_frame
     obj.hide_viewport = True
     obj.hide_render = True
@@ -209,33 +206,107 @@ def animate_tree(tree_age, current_gen, generation_to_frames_ratio, obj, geo_mod
     obj.keyframe_insert(data_path="hide_render", frame=death_frame)
 
 
+def set_up_champions(
+    champions: dict, spacing: float = 5.0, champions_position: tuple = (0.0, 0.0, 0.0)
+) -> None:
+    champions_collection = get_or_create_collection("Champions")
+
+    for champion_name, champion in champions.items():
+        tree_type_collection = get_or_create_collection(
+            champion_name, champions_collection
+        )
+        for tree in champion:
+            champions_position = (
+                champions_position[0] + spacing,
+                champions_position[1],
+                champions_position[2],
+            )
+            tree_obj = tree_to_curve(
+                tree, champions_position[0], champions_position[1], spacing=spacing
+            )
+            object_name = f"{champion_name}_{tree.age}"
+            obj = bpy.data.objects.new(object_name, tree_obj)
+            obj.location = champions_position
+            tree_type_collection.objects.link(obj)
+
+
+def set_up_terrain(noise_grid: np.ndarray, spacing: float = 1.0, scale: float = 20.0) -> None:
+    """
+    Set up the terrain based on the noise grid as a single mesh, centered around the origin.
+    """
+    n_rows, n_cols = noise_grid.shape
+    verts = []
+    faces = []
+
+    # Compute centering offsets
+    x_offset = (n_rows - 1) * spacing / 2
+    y_offset = (n_cols - 1) * spacing / 2
+
+    # Generate vertices (centered)
+    for i in range(n_rows):
+        for j in range(n_cols):
+            x = i * spacing - x_offset
+            y = j * spacing - y_offset
+            z = scale * noise_grid[i, j]
+            verts.append((x, y, z))
+
+    # Generate quad faces
+    for i in range(n_rows - 1):
+        for j in range(n_cols - 1):
+            a = i * n_cols + j
+            b = a + 1
+            c = a + n_cols
+            d = c + 1
+            faces.append((a, b, d, c))
+
+    # Create mesh
+    mesh = bpy.data.meshes.new("TerrainMesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+
+    obj = bpy.data.objects.new("Terrain", mesh)
+
+    # Clear existing terrains
+    safe_remove_collection("Terrain")
+    # Create a new collection for the terrain
+    terrain_collection = get_or_create_collection("Terrain")
+    # Link the object to the collection
+    terrain_collection.objects.link(obj)
+    
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  Main simulation → bakes every generation and builds a playable animation
 # ─────────────────────────────────────────────────────────────────────────────
 def main():
     ### Set up simulation environment ###
-    
-    total_generations = 365        # becomes frame_end (frames 0 … 99)
+
+    total_generations = 365  # becomes frame_end (frames 0 … 99)
     spacing = 2
-    chosen_species = ["pine",]# , "shrub"]
-    
+    chosen_species = [
+        "pine",
+    ]  # , "shrub"]
+
     # Create forest simulation
-    forest = Forest(size=5,
-                    initial_population=0.5,
-                    spawn_probability=0.25,
-                    species_subset=chosen_species)
+    forest = Forest(
+        size=5,
+        initial_population=0.5,
+        spawn_probability=0.25,
+        species_subset=chosen_species,
+    )
 
+    ### Set up Blender environment ###
 
-
-    ### Set up Blender environment ###    
-
+    # Set up blender terrain
+    noise_grid = forest.noise_grid
+    set_up_terrain(noise_grid)
+    
     # Set up Blender sockets for geometry nodes
     blender_sockets = {
         "birch": "Socket_3",
         "oak": "Socket_7",
         "pine": "Socket_3",
     }
-    
+
     # Set up generation to frames ratio
     generation_to_frames_ratio = 5
 
@@ -244,7 +315,7 @@ def main():
     if not geonodes:
         print("Error: No valid geometry nodes found for the specified species.")
         return
-    
+
     # Clean master collection - using improved collection handling
     master_col = get_or_create_collection("Forest Simulation")
 
@@ -252,56 +323,77 @@ def main():
     for gen in range(total_generations):
         generation_name = f"Gen_{(1+gen):03d}"
         gen_col = get_or_create_collection(generation_name, master_col)
-        
-    
-    
-    
-    
+
     # ── Bake every generation to its own collection ────────────────────────
     for gen in range(total_generations):
         print(f"Processing generation {gen}/{total_generations-1}...")
         forest.step()
-        
+
         for i in range(1, forest.size + 1):
             for j in range(1, forest.size + 1):
                 tree_final_state = forest.reached_termination(i, j)
-                
+
                 if tree_final_state is None:
                     continue
-                
+
                 tree_age = tree_final_state.age
-                
+
                 curve = tree_to_curve(tree_final_state, i - 1, j - 1, spacing=spacing)
                 obj_name = f"tree_{i-1}_{j-1}_g{(2+gen-tree_age):03d}"
                 obj = bpy.data.objects.new(obj_name, curve)
                 obj.location = ((i - 1) * spacing, (j - 1) * spacing, 0.0)
-                
-                
-                modifier_name = f"geoNode_{tree_final_state.genes['species']}_{obj_name}"
-                if tree_final_state.genes['species'] in geonodes:
-                    mod = obj.modifiers.new(modifier_name, 'NODES')
-                    mod.node_group = geonodes[tree_final_state.genes['species']]
-                
+
+                modifier_name = (
+                    f"geoNode_{tree_final_state.genes['species']}_{obj_name}"
+                )
+                if tree_final_state.genes["species"] in geonodes:
+                    mod = obj.modifiers.new(modifier_name, "NODES")
+                    mod.node_group = geonodes[tree_final_state.genes["species"]]
+
                 generation_name = f"Gen_{(2+gen-tree_age):03d}"
                 gen_col = bpy.data.collections[generation_name]
-                
-                gen_col.objects.link(obj)
-                
-                
-                geo_mod = obj.modifiers[modifier_name]
-                
-                
-                
-                # Animate the tree
-                animate_tree(tree_age, gen, generation_to_frames_ratio, obj, geo_mod, blender_sockets)
 
-                
-                
-                    
-           
+                gen_col.objects.link(obj)
+
+                geo_mod = obj.modifiers[modifier_name]
+
+                # Animate the tree
+                animate_tree(
+                    tree_age,
+                    gen,
+                    generation_to_frames_ratio,
+                    obj,
+                    geo_mod,
+                    blender_sockets,
+                )
+
+    # Add champion trees to the collection
+    champions = forest.campions
+    champions_position = (50.0, 50.0, 0.0)
+    set_up_champions(champions, spacing, champions_position)
 
     print(f"Forest simulation complete with {total_generations} generations.")
 
 
 if __name__ == "__main__":
-    main()
+    #main()
+    total_generations = 365  # becomes frame_end (frames 0 … 99)
+    spacing = 2
+    chosen_species = [
+        "pine",
+    ]  # , "shrub"]
+
+    # Create forest simulation
+    forest = Forest(
+        size=100,
+        initial_population=0.5,
+        spawn_probability=0.25,
+        species_subset=chosen_species,
+    )
+
+    ### Set up Blender environment ###
+
+    # Set up blender terrain
+    noise_grid = forest.noise_grid
+    print(noise_grid)
+    set_up_terrain(noise_grid)

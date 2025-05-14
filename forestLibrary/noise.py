@@ -43,7 +43,7 @@ class Noise:
         I = 0.0
         for wave in self.noise_waves:
             I += wave[3] * sin(dot(vec2(wave[0],wave[1]), x) + wave[2])
-        I = ((1.0/len(self.noise_waves))*I)
+        I = (I/len(self.noise_waves))
         return I
     
     def compute_noise_grid(self, scale, span):
@@ -54,4 +54,24 @@ class Noise:
             p = s*vec2(i,j)
             out[i,j] = self.noise(p)
         return out
+    
+    def compute_turbulence_grid(self, scale, span, octaves=3):
+        dim = span
+        out = empty((dim,dim))
+        s = (0.5/dim)
+        for i,j in ndindex((dim,dim)):
+            p = s*vec2(i,j)
+            out[i,j] = self.turbulence(p,octaves)
+        return out
+    
+    def turbulence(self, x, octaves=10):
+        '''Add octaves of noise to produce a turbulence-like result. Returns 
+        a single number which is the intensity of the turbulence.'''
+        I = 0
+        c=1 #--- You can change this value to adjust the intensity of the turbulence
+        #--- Part 3: Insert code that sums octaves of noise producing "turbulence"
+        for i in range(octaves):
+            I += (1/(c*2**i)) * self.noise((2**i)*x)
+        #--- End of Part 3
+        return I
   
