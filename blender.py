@@ -51,8 +51,6 @@ def get_or_create_collection(collection_name: str, parent_collection=None) -> bp
     return col
 
 
-
-
 def tree_to_curve(tree: Tree,
                   i: int,
                   j: int,
@@ -151,38 +149,95 @@ def init_blender_geonodes(species_subset=None):
     return geonodes
 
 
-def clean_animation_instance_objects(pattern="GenInst_"):
+def animate_tree(tree_age, current_gen, generation_to_frames_ratio, obj, geo_mod, blender_sockets):
     """
-    Remove all instance objects matching the given pattern.
+    Animate the tree growth and death using keyframes.
     """
-    objs_to_remove = [obj for obj in bpy.data.objects if obj.name.startswith(pattern)]
     
-    for obj in objs_to_remove:
-        # Remove any animation data
-        if obj.animation_data and obj.animation_data.action:
-            bpy.data.actions.remove(obj.animation_data.action)
-        # Remove the object
-        bpy.data.objects.remove(obj, do_unlink=True)
+    # Calculate birth generation (when the tree first appeared)
+    birth_gen = current_gen - tree_age
+
+    # Calculate frame numbers based on birth generation
+    start_frame = max(1, birth_gen * generation_to_frames_ratio)
+    end_frame = current_gen * generation_to_frames_ratio
+    death_frame = (current_gen + 2) * generation_to_frames_ratio
+
+    # Set the animation values
+    start_value = 0.0
+    end_value = 1.0
+    death_value = 0.0
+                
+    # Target input - access the input by name 
+    input_name = blender_sockets[tree_final_state.genes['species']]  # aka "growth ratio"
+
+    # Set up animation keyframes
+    bpy.context.scene.frame_set(start_frame)
+    geo_mod[input_name] = start_value
+    geo_mod.keyframe_insert(data_path=f'["{input_name}"]', frame=start_frame)
+
+    bpy.context.scene.frame_set(end_frame)
+    geo_mod[input_name] = end_value
+    geo_mod.keyframe_insert(data_path=f'["{input_name}"]', frame=end_frame)
+    
+    bpy.context.scene.frame_set(death_frame)
+    geo_mod[input_name] = death_value
+    geo_mod.keyframe_insert(data_path=f'["{input_name}"]', frame=death_frame)
+    
+    
+    # Hide tree before it starts growing
+    obj.hide_viewport = True
+    obj.hide_render = True
+    obj.keyframe_insert(data_path="hide_viewport", frame=start_frame - 1)
+    obj.keyframe_insert(data_path="hide_render", frame=start_frame - 1)
+    
+    # Show tree when growth starts
+    obj.hide_viewport = False
+    obj.hide_render = False
+    obj.keyframe_insert(data_path="hide_viewport", frame=start_frame)
+    obj.keyframe_insert(data_path="hide_render", frame=start_frame)
+    
+    # Keep it visible through end_frame, then hide again
+    obj.hide_viewport = False
+    obj.hide_render = False
+    obj.keyframe_insert(data_path="hide_viewport", frame=end_frame)
+    obj.keyframe_insert(data_path="hide_render", frame=end_frame)
+    
+    # Hide tree again after death_frame
+    obj.hide_viewport = True
+    obj.hide_render = True
+    obj.keyframe_insert(data_path="hide_viewport", frame=death_frame)
+    obj.keyframe_insert(data_path="hide_render", frame=death_frame)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Main simulation → bakes every generation and builds a playable animation
 # ─────────────────────────────────────────────────────────────────────────────
 def main():
-    # Simulation / animation parameters
+    ### Set up simulation environment ###
+    
     total_generations = 365        # becomes frame_end (frames 0 … 99)
     spacing = 2
     chosen_species = ["pine",]# , "shrub"]
-    generation_to_frames_ratio = 5
     
+    # Create forest simulation
+    forest = Forest(size=5,
+                    initial_population=0.5,
+                    spawn_probability=0.25,
+                    species_subset=chosen_species)
+
+
+
+    ### Set up Blender environment ###    
+
+    # Set up Blender sockets for geometry nodes
     blender_sockets = {
         "birch": "Socket_3",
         "oak": "Socket_7",
         "pine": "Socket_3",
     }
-
-    # First, remove any existing animation instances to avoid conflicts
-    #clean_animation_instance_objects()
+    
+    # Set up generation to frames ratio
+    generation_to_frames_ratio = 5
 
     # Initialize geometry nodes
     geonodes = init_blender_geonodes(chosen_species)
@@ -190,27 +245,16 @@ def main():
         print("Error: No valid geometry nodes found for the specified species.")
         return
     
-    # Create forest simulation - using size=2 as in the updated version
-    forest = Forest(size=5,
-                    initial_population=0.5,
-                    spawn_probability=0.25,
-                    species_subset=chosen_species)
-
-    # Optional helpers to see the grid layout while the sim runs
-
     # Clean master collection - using improved collection handling
-    master_col = bpy.data.collections.get("Generations")
-    if master_col is None:
-        master_col = bpy.data.collections.new("Generations")
-        bpy.context.scene.collection.children.link(master_col)
-    else:
-        for sub in list(master_col.children):
-            bpy.data.collections.remove(sub, do_unlink=True)
+    master_col = get_or_create_collection("Forest Simulation")
 
     ## Create a collection for all posible generations
     for gen in range(total_generations):
-        gen_col = bpy.data.collections.new(f"Gen_{gen+1:03d}")
-        master_col.children.link(gen_col)
+        generation_name = f"Gen_{(1+gen):03d}"
+        gen_col = get_or_create_collection(generation_name, master_col)
+        
+    
+    
     
     
     # ── Bake every generation to its own collection ────────────────────────
@@ -246,34 +290,11 @@ def main():
                 
                 geo_mod = obj.modifiers[modifier_name]
                 
-                # Calculate birth generation (when the tree first appeared)
-                birth_gen = gen - tree_age
+                
+                
+                # Animate the tree
+                animate_tree(tree_age, gen, generation_to_frames_ratio, obj, geo_mod, blender_sockets)
 
-                # Calculate frame numbers based on birth generation
-                start_frame = max(1, birth_gen * generation_to_frames_ratio)
-                end_frame = gen * generation_to_frames_ratio
-                death_frame = (gen + 2) * generation_to_frames_ratio
-
-                # Set the animation values
-                start_value = 0.0
-                end_value = 1.0
-                death_value = 0.0
-
-                # Target input - access the input by name 
-                input_name = blender_sockets[tree_final_state.genes['species']]  # aka "growth ratio"
-
-                # Set up animation keyframes
-                bpy.context.scene.frame_set(start_frame)
-                geo_mod[input_name] = start_value
-                geo_mod.keyframe_insert(data_path=f'["{input_name}"]', frame=start_frame)
-
-                bpy.context.scene.frame_set(end_frame)
-                geo_mod[input_name] = end_value
-                geo_mod.keyframe_insert(data_path=f'["{input_name}"]', frame=end_frame)
-
-                bpy.context.scene.frame_set(death_frame)
-                geo_mod[input_name] = death_value
-                geo_mod.keyframe_insert(data_path=f'["{input_name}"]', frame=death_frame)
                 
                 
                     
