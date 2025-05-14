@@ -19,20 +19,30 @@ class Tree:
         # compute initial geometry + sunlight
         self._update_geometry()
         #self.sunlight = self.sunlight_intake()
+        self.fitness = 0.0
+
+
+        # ---- DEATH INFO -----
+        self.year_of_death = None
+        self.death_reason = None
     
      # ----------------- L-SYSTEM  -----------------
+
+    def __repr__(self):
+        return self.genes['species']
+    
     def production_rule(self, sym):
         """Must be overridden by subclasses."""
         return [sym]             # default: no rewrite
     
-    def grow(self, forest_season):
-        if self.age <= 8: # Stops growing at age 10 (mainly to prevent micro-branches and lag)
+    def grow(self, climate_zone):
+        if self.age <= 10: 
             grown_lsystem = []
             for sym in self.lsystem:
                 grown_lsystem += self.production_rule(sym)
             self.lsystem = grown_lsystem
             self._update_geometry()
-            self.sunlight = self.sunlight_intake(season=forest_season)
+            self.sunlight = self.sunlight_intake(scenario=climate_zone)
         self.age += 1      # Age still increases if it stops growing
 
     def excess_sunlight(self):
@@ -69,7 +79,7 @@ class Tree:
                             z_vals.max()-z_vals.min()))
 
     # ----------------- FITNESS  -----------------
-    def sunlight_intake(self, season):
+    def sunlight_intake(self, scenario):
         """
         Fitness function of each of the trees.
         S(h, w) = alpha*h + beta*w + gamma*sqrt(h*w)
@@ -77,30 +87,28 @@ class Tree:
         alpha --> tall factor
         beta --> wide factor
         gamma --> square factor
-
-
         """
         alpha = None
         beta = None
         gamma = None
-        if season == "summer":
-            # The light comes from high up in the summer, penetrates far into the forest and benefits wide trees.
-            alpha = 0.25
-            beta = 2.0
+        if scenario == "tropical":
+            # The light comes from high up in the summer, penetrates far into the forest and benefits wide trees. 
+            alpha = 0.5
+            beta = 1.75
             gamma = 1.0
 
-        elif season == "autumn" or season == "spring":
+        elif scenario == "temperate":
             # Intermediate lighting condition. Doesn't prioritise tall nor wide trees
-            alpha = 0.5
-            beta =  1.5
-            gamma = 1.5
+            alpha = 1.5
+            beta =  1.0
+            gamma = 1.75
             pass
 
-        elif season == "winter":
+        elif scenario == "polar":
             # The light comes from a shallow angle in winter. It is better to be taller at this point.
-            alpha = 1.0
+            alpha = 2.5
             beta = 0.5
-            gamma = 1
+            gamma = 0.5
             pass
         
         return alpha*(self.height + self.height_mod) + beta*self.width + gamma*np.sqrt((self.height + self.height_mod)*self.width)
@@ -112,30 +120,51 @@ class Tree:
         The tree dies with an increasing probability as it ages.
         """
 
-        #chance_of_death = (self.age / 100)
-        #A way for sunlight shadow to impact survival chance, but this is a bad solution
-        chance_of_death = ((self.age * max({1, (self.shadow)/(self.sunlight + 0.000001)})) / 100)
-
+        chance_of_death = (self.age / 100)
 
         if np.random.rand() < chance_of_death:
             return True
         return False
     
-    def survival_roll(self):
+    def survival_roll(self, simulation_year, scenario):
         """
         The tree dies if it does not meet the survival requirements.
         The larger a tree is, the more sunlight it needs to survive. 
         """
-        effective_size = (self.height * (self.width)**2)**2 # h*w**2: volume bounding box
-        self.survival_requirement = (self.shadow + effective_size)
+        # Parameters for the survival roll
+        if scenario == "polar":
+            a = 0.5
+            b = 0.6
+        
+        if scenario == "temperate":
+            a = 0.4
+            b = 0.4
+        
+        if scenario == "tropical":
+            a = 0.4
+            b = 0.3
+        
+        effective_size = (self.height * (self.width)**2)
+        
+        self.survival_requirement = a*self.shadow + b*effective_size
+        self.fitness = self.sunlight - self.survival_requirement
+
         
         # The tree dies if it does not get enough sunlight
-        #if self.sunlight < self.survival_requirement:
-        #    return False
-        
-        # If the tree is not dead, check if it dies from old age
-        if self.old_age_death_roll():
-            return False
+        if self.age >= 1:
+            if self.fitness < 0:
+                self.year_of_death = simulation_year
+                if self.shadow > self.sunlight:
+                    self.death_reason = "Shadow"
+                else:
+                    self.death_reason = "Size"
+                return False
+            
+            # If the tree is not dead, check if it dies from old age
+            if self.old_age_death_roll():
+                self.year_of_death = simulation_year
+                self.death_reason = "Age"
+                return False
         
         # Tree survives
         return True

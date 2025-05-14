@@ -43,7 +43,7 @@ class ShrubTree(Tree):
         g = self.genes
         r_h, r_b  = g['r_horiz'], g['r_bush']
         alpha, phi= g['alpha'], g['phi']
-        n_bushy   = int(g['n_bushy'])
+        n_bushy   = int(g['n_bushy']) + 1
         bushy_thr = g['bushy_start']
         q, e      = g['q'], g['e']
 
@@ -96,8 +96,8 @@ class ShrubTree(Tree):
 
 class PineTree(Tree):
     """
-    Tall stem that starts branching only after the trunk narrows enough.
-    Branch whorls are now visibly longer.
+    Tall stem that starts branching only after the trunk narrows enough,
+    with a bit of randomness for natural variation.
     """
     def __init__(self, genes, height_mod):
         axiom = [('T', 1.5, 0.25)]
@@ -106,41 +106,63 @@ class PineTree(Tree):
     def production_rule(self, sym):
         g = self.genes
         r_t, r_b = g['r_trunk'], g['r_branch']
-        alpha, phi = g['alpha'], g['phi']
-        s_min = g['min_branch_size']
+        
+        # base angles
+        base_alpha, base_phi = g['alpha'], g['phi']
+        # how much to jitter them
+        angle_var = g.get('angle_variation', 10)            # ±10° by default
+        alpha = base_alpha + random.uniform(-angle_var, angle_var)
+        phi   = base_phi   + random.uniform(-angle_var, angle_var)
+
+        # branch‐count jitter
+        target_branches = g.get('branch_count', 2)           # default 2
+        branch_count   = target_branches + random.choice([-1, 0, 1])
+        branch_count   = max(1, min(4, branch_count))        # clamp between 1 and 4
+
+        # how much branch‐length can vary
+        length_var = g.get('branch_length_variation', 0.2)   # ±20% by default
+
         q, e  = g['q'], g['e']
+        s_min = g['min_branch_size']
 
         match sym:
-
-            # ─────────────────────────────────────────────────────── Trunk
             case ('T', s, w):
+                # trunk symbol
                 w_next = w * q**e
                 out = [('!', w), ('F', s)]
 
-                if s > s_min:                        # still climbing
+                if s > s_min and self.age <= 8:
+                    # keep growing straight
                     out += [('T', s * r_t, w_next)]
-                else:                                # add long branches
-                    s_branch = s / r_b               # ←  longer than s
-                    for sign in (+1, -1):
+                else:
+                    # time to branch!
+                    for _ in range(branch_count):
+                        sign = random.choice((+1, -1))
+                        # jitter branch length
+                        s_branch = (s / r_b) * random.uniform(1-length_var, 1+length_var)
                         out += [
                             '[', ('+', sign * alpha), ('/', phi),
-                                  ('B', s_branch, w_next), ']'
+                                  ('B', s_branch, w_next),
+                            ']'
                         ]
+                    # continue with a bit more trunk
                     out += [('T', s * r_t, w_next)]
+
                 return out
 
-            # ─────────────────────────────────────────────────────── Branch
             case ('B', s, w):
-                if s < 0.05:                         # tiny twig end
+                # branch symbol: you can add similar jitter here if you like
+                if s < 0.05:
                     return [('!', w), ('F', s)]
+
                 w_next = w * q**e
-                # grow straight once, *then* fork, for visual length
-                return [
-                    ('!', w), ('F', s),
-                    ('B', s * r_b, w_next),          # straight extension
-                    '[', ('+',  25), ('B', s * r_b, w_next), ']',
-                    '[', ('+', -25), ('B', s * r_b, w_next), ']'
-                ]
+                out = [('!', w), ('F', s),
+                       ('B', s * r_b, w_next)]
+                # optional side‐forks with jittered angles
+                for sign in (+1, -1):
+                    angle = random.uniform(20, 30)  # a little irregular
+                    out += ['[', ('+', sign * angle), ('B', s * r_b, w_next), ']']
+                return out
 
             case _:
                 return [sym]
