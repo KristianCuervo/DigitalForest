@@ -5,6 +5,8 @@ from .geneticAlgorithm import GeneticAlgorithm
 from .species_genes import SPECIES_DEFAULT_PARAMS, reduced_SPECIES, get_species_params
 from .species import HondaTree, ShrubTree, PineTree
 
+from .graveyard import Graveyard
+
 SPECIES_CLASS = {
     "honda"      : HondaTree,
     "shrub"      : ShrubTree,
@@ -14,14 +16,14 @@ SPECIES_CLASS = {
 
 
 class Forest:
-    def __init__(self, size:int, initial_population:float=0.5, spawn_probability:float=0.15, species_subset: list[str] | None = None):
+    def __init__(self, size:int, initial_population:float=0.5, spawn_probability:float=0.15, species_subset: list[str] | None = None, scenario:str="polar"):
+        seed = 12345
+        self.rnd = np.random.default_rng(seed)   
         # Forest is a grid of trees with boundaries of None values
         self.gen = 0
-        self.season_initial = 0
-        self.season_length = 90
-        self.season_list = ['autumn', 'winter', 'spring', 'summer']
-        self.season = self.season_list[self.season_initial]
-        print("The season is", self.season)
+
+        self.scenario = scenario
+        print("The climate zone is", self.scenario)
         
         self.size = size # Tree Size
         self.grid = np.empty((size+2, size+2), dtype=object)
@@ -38,8 +40,12 @@ class Forest:
         # Spawn probability is the probability of spawning a new tree in an empty cell
         # Genetic algorithm is used to create new trees from the gene pools
         self.spawn_probability = spawn_probability
-        self.genetic_algorithm = GeneticAlgorithm(mutation_rate=0.2, mutation_strength=0.1)
-    
+        self.genetic_algorithm = GeneticAlgorithm(mutation_rate=0.1, mutation_strength=0.25)
+        
+        # Collectors for data analysis and gene graphs
+        self.graveyard = {s: [] for s in self.active_species} # all dead trees
+        self.champions = {s: [] for s in self.active_species} # most fit trees every few generations
+
     def initial_spawn(self):
         """
         Randomly spawns trees in the forest. 
@@ -50,7 +56,7 @@ class Forest:
             for j in range(1, self.size+1):
                 # 1 --> self.size+1 are the non-boundary cells
                 
-                if np.random.rand() < self.initial_population:
+                if self.rnd.random() < self.initial_population:
                     # Given a wanted population probability distribution, spawn random trees
                     species_name = random.choice(self.active_species)
                     genes = get_species_params(species_name, param_dict=reduced_SPECIES)
@@ -94,10 +100,11 @@ class Forest:
         for i in range(1, self.size+1):
             for j in range(1, self.size+1):
                 if self.grid[i, j] is not None:
-                    if self.grid[i, j].survival_roll() == False:
+                    if self.grid[i, j].survival_roll(simulation_year=self.gen, scenario=self.scenario) == False:
+                        self.graveyard[self.grid[i,j].genes['species']].append(self.grid[i,j]) # Collects the tree instance in the graveyard
                         self.grid[i, j] = None # Kills the tree instance
                     else:
-                        self.grid[i, j].grow(forest_season=self.season)
+                        self.grid[i, j].grow(climate_zone=self.scenario)
 
     def update_gene_pools(self):
         """
@@ -116,31 +123,51 @@ class Forest:
     def spawn_new_trees(self):
         """
         Spawns new trees in the forest based on the gene pools and genetic algorithm.
-        The trees are spawned in empty cells with a probability of spawn_probability.
+        The trees are spawned in empty cells with adaptive reproduciton.
         """
+        k_reproductive_rate = 0.4 # Constant which affects the dynamical system. This could be changed into a tree property.
         self.update_gene_pools()
-        for i in range(1, self.size+1):
-            for j in range(1, self.size+1):
-                if self.grid[i, j] is None and np.random.rand() < self.spawn_probability:
-                    species = random.choice(list(self.gene_pools.keys()))
-                    current_gene_pool = self.gene_pools[species]
-                    if len(current_gene_pool) < 2:
-                        # Not enough parents
-                        print(species, "is extinct or near.")
-                        continue
-                    # Create a child tree from gene pool
-                    child_genes = self.genetic_algorithm.generate_children(current_gene_pool, 1)[0]
-                    self.grid[i, j] = SPECIES_CLASS[species](genes=child_genes)
+        for species, gene_pool in self.gene_pools.items():
+            if len(gene_pool) >= 2: # Needs two parents to breed
+                n_offspring = int(np.ceil(k_reproductive_rate * len(gene_pool)))
+                children = self.genetic_algorithm.generate_children(gene_pool, n_offspring) # Creates n amount of children from the gene_pool
+                for child in children:
+                    empty_cells = np.argwhere(self.grid == None) # Look at current empty cells
+                    if len(empty_cells) > 0: # 
+                        cell = random.choice(empty_cells) # Picks a random cell to spawn on 
+                        self.grid[cell[0], cell[1]] = SPECIES_CLASS[species](genes=child) # Spawns a child tree on tile
+                    else:
+                        break # No empty cells to spawn a tree
+            
+            elif len(gene_pool) < 2:
+                print(f"Not enough trees to breed {species} trees. Only {len(gene_pool)} trees available.")
     
-    def update_season(self):
-        old_season = self.season
-        season_index = int(self.season_initial + np.floor(self.gen/self.season_length)) % 4
-        self.season = self.season_list[season_index]
-        if old_season != self.season:
-            print("New season is ", self.season)
+    def record_champions(self):
+        """
+        Every 25 generations, pick the fittest mature tree of each species
+        and store it in self.champions[species] as (gen, tree).
+        """
+        # make sure gene_pools is up to date
+        self.update_gene_pools()
 
-                
-    
+        for species, pool in self.gene_pools.items():
+            # filter only mature trees
+            mature_trees = [
+                t for t in pool
+                if hasattr(t, 'age') 
+                   and t.age >= 10
+            ]
+            if not mature_trees:
+                # no candidates this time
+                continue
+
+            from operator import attrgetter
+
+            # pick the one with highest fitness()
+            best = max(mature_trees, key=attrgetter('fitness'))
+            # store a snapshot (generation, tree)
+            self.champions[species].append((self.gen, best))
+
     def step(self):
         """
         Runs one step of the simulation.
@@ -148,5 +175,6 @@ class Forest:
         self.update_shadows()
         self.death_or_growth()
         self.spawn_new_trees()
-        self.update_season()
+        if self.gen % 10 == 0:
+            self.record_champions()
         self.gen += 1

@@ -302,6 +302,12 @@ SPECIES_DEFAULT_PARAMS = {
     }
 }
 
+SPECIES_DEFAULT_PARAMS['pine'].update({
+    'angle_variation': 5,          # small jitter
+    'branch_count':    2,          # nominal whorl size
+    'branch_length_variation': 0.1 # ±10%
+})
+
 def get_species_params(species_name: str, param_dict: dict, stochastic_range: float = 0.05) -> dict:
     """
     Returns a copy of the default params for a given species,

@@ -2,6 +2,7 @@ import numpy as np
 from pygel3d import graph, gl_display as gl
 from forestLibrary.lsystem_utils import realize
 from forestLibrary.forest import Forest
+from forestLibrary.tree import Tree
 
 def build_forest_graph(forest: Forest, grid_spacing: float = 5.0) -> graph.Graph:
     g = graph.Graph()
@@ -20,4 +21,17 @@ def build_forest_graph(forest: Forest, grid_spacing: float = 5.0) -> graph.Graph
             for child, parent in edges:
                 g.connect_nodes(base + child, base + parent)
 
+    return g
+
+def build_tree(champions: list[Tree]) -> graph.Graph:
+    g = graph.Graph()
+    for i, tree in enumerate(champions):
+        verts, edges, _ = realize(tree.lsystem)
+        base   = len(g.nodes())
+
+        offset = np.array([i*4.0, 0.0, 0.0], dtype=float)
+        for v in verts:
+            g.add_node(v + offset)
+        for child, parent in edges:
+            g.connect_nodes(base + child, base + parent)
     return g
