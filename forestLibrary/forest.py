@@ -1,5 +1,7 @@
 import numpy as np
+from numpy import ndindex
 from .tree import Tree
+from .noise import Noise
 import random as random
 from .geneticAlgorithm import GeneticAlgorithm
 from .species_genes import SPECIES_DEFAULT_PARAMS, reduced_SPECIES, get_species_params
@@ -9,6 +11,8 @@ from .graveyard import Graveyard
 
 SPECIES_CLASS = {
     "honda"      : HondaTree,
+    "oak"        : HondaTree,
+    "birch"      : HondaTree,
     "shrub"      : ShrubTree,
     "pine"       : PineTree
 }
@@ -28,6 +32,10 @@ class Forest:
         self.size = size # Tree Size
         self.grid = np.empty((size+2, size+2), dtype=object)
 
+        self.noise = Noise(3, 90)
+        self.noise_grid = self.noise.compute_noise_grid(30, self.size+2)
+        #print(self.noise_grid)
+
         # Forest is spawned on grid with random tree species
         self.initial_population = initial_population
         self.active_species = species_subset or list(SPECIES_CLASS.keys())
@@ -36,22 +44,31 @@ class Forest:
         # Sunlight grid is a grid of sunlight values for each tree at their current growth
         self.sunlight_grid = None
         self.get_gene_pools = None
+        self.shadow_kernel = np.array([ [0.05, 0.1, 0.05],
+                                        [0.1,  0,   0.1],
+                                        [0.05, 0.1, 0.05]])
 
         # Spawn probability is the probability of spawning a new tree in an empty cell
         # Genetic algorithm is used to create new trees from the gene pools
         self.spawn_probability = spawn_probability
+        
         self.genetic_algorithm = GeneticAlgorithm(mutation_rate=0.1, mutation_strength=0.25)
         
         # Collectors for data analysis and gene graphs
         self.graveyard = {s: [] for s in self.active_species} # all dead trees
         self.champions = {s: [] for s in self.active_species} # most fit trees every few generations
 
+
+        
+        self.death_pool = np.empty((size+2, size+2), dtype=object)
+    
     def initial_spawn(self):
         """
         Randomly spawns trees in the forest. 
         It should be investigated whether the trees should also start at
         age 1 or at random ages.
         """
+
         for i in range(1, self.size+1):
             for j in range(1, self.size+1):
                 # 1 --> self.size+1 are the non-boundary cells
@@ -62,6 +79,7 @@ class Forest:
                     genes = get_species_params(species_name, param_dict=reduced_SPECIES)
                     self.grid[i, j] = SPECIES_CLASS[species_name](genes=genes)
 
+
     def update_sunlight(self):
         """
         Returns a grid of sunlight values for each tree in the forest.
@@ -69,10 +87,12 @@ class Forest:
         and the angle of the sun. This is required to calculate the shadow.
         """
         sunlight_grid = np.zeros((self.size+2, self.size+2))
-        for i in range(1, self.size+1):
-            for j in range(1, self.size+1):
-                if self.grid[i, j] is not None:
+        def inner(self, i, j):
+            if self.grid[i, j] is not None:
                     sunlight_grid[i, j] = self.grid[i, j].sunlight
+
+        self.go_through_forest(inner)
+
         self.sunlight_grid =  sunlight_grid
 
     def update_shadows(self):
@@ -83,41 +103,48 @@ class Forest:
         approximation of the shadow cast by the neighbours.
         """
         self.update_sunlight()
-        shadow_kernel = np.array([[0.05, 0.1, 0.05],
-                                  [0.1, 0, 0.1],
-                                  [0.05, 0.1, 0.05]])
-        for i in range(1, self.size+1):
-            for j in range(1, self.size+1):
-                if self.grid[i, j] is not None:
-                    self.grid[i, j].shadow = np.sum(shadow_kernel*self.sunlight_grid[i-1:i+2, j-1:j+2])
+
+        def inner(self, i, j):
+            if self.grid[i, j] is not None:
+                self.grid[i, j].shadow = self.get_shadow(i,j)
+        
+        self.go_through_forest(inner)
     
+    def get_shadow(self, i, j):
+        return np.sum(self.shadow_kernel*self.sunlight_grid[i-1:i+2, j-1:j+2])
     
     def death_or_growth(self):
         """
         Determines whether each tree in the forest survives or dies.
         The trees that die are removed from the forest.
         """
+
         for i in range(1, self.size+1):
             for j in range(1, self.size+1):
                 if self.grid[i, j] is not None:
                     if self.grid[i, j].survival_roll(simulation_year=self.gen, scenario=self.scenario) == False:
                         self.graveyard[self.grid[i,j].genes['species']].append(self.grid[i,j]) # Collects the tree instance in the graveyard
+                        self.death_pool[i, j] = self.grid[i, j] # adds the final tree state before its death to a pool for rendering
+
                         self.grid[i, j] = None # Kills the tree instance
                     else:
                         self.grid[i, j].grow(climate_zone=self.scenario)
+
 
     def update_gene_pools(self):
         """
         Returns seperate lists of the instances of each species in the forest.
         """
         gene_pools = {}
-        for i in range(1, self.size+1):
-            for j in range(1, self.size+1):
-                if self.grid[i, j] is not None:
-                    species = self.grid[i, j].genes['species'] # this is a string of the species name 
-                    if species not in gene_pools:
-                        gene_pools[species] = [] # creates a new list for the species
-                    gene_pools[species].append(self.grid[i, j]) # appends tree instance to list
+        def inner(self, i, j):
+            if self.grid[i, j] is not None:
+                species = self.grid[i, j].genes['species'] # this is a string of the species name 
+                if species not in gene_pools:
+                    gene_pools[species] = [] # creates a new list for the species
+                gene_pools[species].append(self.grid[i, j]) # appends tree instance to list   
+             
+        self.go_through_forest(inner)
+
         self.gene_pools = gene_pools
     
     def spawn_new_trees(self):
@@ -127,6 +154,7 @@ class Forest:
         """
         k_reproductive_rate = 0.4 # Constant which affects the dynamical system. This could be changed into a tree property.
         self.update_gene_pools()
+
         for species, gene_pool in self.gene_pools.items():
             if len(gene_pool) >= 2: # Needs two parents to breed
                 n_offspring = int(np.ceil(k_reproductive_rate * len(gene_pool)))
@@ -141,6 +169,7 @@ class Forest:
             
             elif len(gene_pool) < 2:
                 print(f"Not enough trees to breed {species} trees. Only {len(gene_pool)} trees available.")
+
     
     def record_champions(self):
         """
@@ -168,6 +197,16 @@ class Forest:
             # store a snapshot (generation, tree)
             self.champions[species].append((self.gen, best))
 
+
+    def reached_termination(self, i, j):
+        tree_in_terminal_state = self.death_pool[i,j]
+        if tree_in_terminal_state is not None:
+            self.death_pool[i,j] = None
+            return tree_in_terminal_state
+        else:
+            return None
+
+          
     def step(self):
         """
         Runs one step of the simulation.
@@ -175,6 +214,15 @@ class Forest:
         self.update_shadows()
         self.death_or_growth()
         self.spawn_new_trees()
+
         if self.gen % 10 == 0:
             self.record_champions()
         self.gen += 1
+
+    
+    def go_through_forest(self, func):
+        for i, j in ndindex(self.size, self.size):
+            func(self, i+1, j+1)
+        #for i in range(1, self.size+1):
+        #    for j in range(1, self.size+1):
+        #        func(self, i, j)

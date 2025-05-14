@@ -3,7 +3,7 @@ import random
 HONDA_GENES = [
 {
         # D Tree
-        "species": "honda",
+        "species": "oak",
         # branch‐length scalers
         "r1": 0.60, "r2": 0.85,
         # yaw (left/right) angles
@@ -16,7 +16,7 @@ HONDA_GENES = [
         },
 {
         # G Tree
-        "species": "honda",
+        "species": "birch",
         # branch‐length scalers
         "r1": 0.80, "r2": 0.80,
         # yaw (left/right) angles
@@ -29,7 +29,7 @@ HONDA_GENES = [
         },
 {
         # I Tree
-        "species": "honda",
+        "species": "oak",
         # branch‐length scalers
         "r1": 0.55, "r2": 0.95,
         # yaw (left/right) angles
@@ -317,7 +317,7 @@ def get_species_params(species_name: str, param_dict: dict, stochastic_range: fl
         
     if type(defaults) is list:
         defaults = random.choice(defaults)
-        
+            
     new_params = {}
     for k, v in defaults.items():
         if isinstance(v, (float, int)):

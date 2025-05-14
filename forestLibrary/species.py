@@ -2,9 +2,9 @@ import random
 from .tree import Tree
 
 class HondaTree(Tree):
-    def __init__(self, genes):
+    def __init__(self, genes, height_mod):
         axiom = [('A', 0.7, 0.3)]
-        super().__init__(genes, axiom=axiom)
+        super().__init__(genes, height_mod, axiom=axiom)
 
     def production_rule(self, sym):
         r1 = self.genes['r1']
@@ -34,9 +34,9 @@ class ShrubTree(Tree):
     length drops below `bushy_start`, then the node converts to a bushy
     shoot (`B`) that fills the local area with short branches.
     """
-    def __init__(self, genes):
+    def __init__(self, genes, height_mod):
         axiom = [('H', 0.5, 0.25)]               # start with one runner
-        super().__init__(genes, axiom=axiom)
+        super().__init__(genes, height_mod, axiom=axiom)
 
     # ───────────────────────────────────────────────────────────────────
     def production_rule(self, sym):
@@ -99,9 +99,9 @@ class PineTree(Tree):
     Tall stem that starts branching only after the trunk narrows enough,
     with a bit of randomness for natural variation.
     """
-    def __init__(self, genes):
+    def __init__(self, genes, height_mod):
         axiom = [('T', 1.5, 0.25)]
-        super().__init__(genes, axiom=axiom)
+        super().__init__(genes, height_mod, axiom=axiom)
 
     def production_rule(self, sym):
         g = self.genes
@@ -169,9 +169,9 @@ class PineTree(Tree):
             
 
 class FernTree(Tree):
-    def __init__(self, genes):
+    def __init__(self, genes, height_mod):
         axiom = [('A', 0.6, 0.1)]
-        super().__init__(genes, axiom=axiom)
+        super().__init__(genes, height_mod, axiom=axiom)
 
     def production_rule(self, sym):
         r = self.genes['r1']
