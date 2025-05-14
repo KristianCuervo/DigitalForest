@@ -3,8 +3,9 @@ from .lsystem_utils import realize
 
 
 class Tree:
-    def __init__(self, genes, axiom=None):
+    def __init__(self, genes, height_mod, axiom=None):
         self.genes   = genes
+        self.height_mod = 10*height_mod
         self.lsystem = axiom if axiom else [('A', 1.0, 0.2)]
         self.age     = 1
 
@@ -34,6 +35,11 @@ class Tree:
             self.sunlight = self.sunlight_intake(season=forest_season)
         self.age += 1      # Age still increases if it stops growing
 
+    def excess_sunlight(self):
+        if self.sunlight != self.shadow:
+            return self.sunlight / self.shadow
+        else:
+            return 0
     
     def _update_geometry(self):
         verts, edges, radii = realize(self.lsystem)
@@ -97,7 +103,7 @@ class Tree:
             gamma = 1
             pass
         
-        return alpha*self.height + beta*self.width + gamma*np.sqrt(self.height*self.width)
+        return alpha*(self.height + self.height_mod) + beta*self.width + gamma*np.sqrt((self.height + self.height_mod)*self.width)
     
 
     # ----------------- DEATH ROLLS -----------------
@@ -108,7 +114,7 @@ class Tree:
 
         #chance_of_death = (self.age / 100)
         #A way for sunlight shadow to impact survival chance, but this is a bad solution
-        chance_of_death = ((self.age * max({1, (self.shadow + 0.000001)/(self.sunlight + 0.000002)})) / 100)
+        chance_of_death = ((self.age * max({1, (self.shadow)/(self.sunlight + 0.000001)})) / 100)
 
 
         if np.random.rand() < chance_of_death:

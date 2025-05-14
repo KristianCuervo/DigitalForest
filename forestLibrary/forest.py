@@ -1,5 +1,7 @@
 import numpy as np
+from numpy import ndindex
 from .tree import Tree
+from .noise import Noise
 import random as random
 from .geneticAlgorithm import GeneticAlgorithm
 from .species_genes import SPECIES_DEFAULT_PARAMS, reduced_SPECIES, get_species_params
@@ -28,6 +30,10 @@ class Forest:
         self.size = size # Tree Size
         self.grid = np.empty((size+2, size+2), dtype=object)
 
+        self.noise = Noise(3, 90)
+        self.noise_grid = self.noise.compute_noise_grid(30, self.size+2)
+        print(self.noise_grid)
+
         # Forest is spawned on grid with random tree species
         self.initial_population = initial_population
         self.active_species = species_subset or list(SPECIES_CLASS.keys())
@@ -36,6 +42,9 @@ class Forest:
         # Sunlight grid is a grid of sunlight values for each tree at their current growth
         self.sunlight_grid = None
         self.get_gene_pools = None
+        self.shadow_kernel = np.array([ [0.05, 0.1, 0.05],
+                                        [0.1,  0,   0.1],
+                                        [0.05, 0.1, 0.05]])
 
         # Spawn probability is the probability of spawning a new tree in an empty cell
         # Genetic algorithm is used to create new trees from the gene pools
@@ -56,7 +65,7 @@ class Forest:
                 # Given a wanted population probability distribution, spawn random trees
                 species_name = random.choice(self.active_species)
                 genes = get_species_params(species_name, param_dict=reduced_SPECIES)
-                self.grid[i, j] = SPECIES_CLASS[species_name](genes=genes)
+                self.grid[i, j] = SPECIES_CLASS[species_name](height_mod=self.noise_grid[i,j], genes=genes)
 
         self.go_through_forest(inner)
 
@@ -73,7 +82,6 @@ class Forest:
 
         self.go_through_forest(inner)
 
-
         self.sunlight_grid =  sunlight_grid
 
     def update_shadows(self):
@@ -84,16 +92,15 @@ class Forest:
         approximation of the shadow cast by the neighbours.
         """
         self.update_sunlight()
-        shadow_kernel = np.array([[0.05, 0.1, 0.05],
-                                  [0.1, 0, 0.1],
-                                  [0.05, 0.1, 0.05]])
 
         def inner(self, i, j):
             if self.grid[i, j] is not None:
-                self.grid[i, j].shadow = np.sum(shadow_kernel*self.sunlight_grid[i-1:i+2, j-1:j+2])
+                self.grid[i, j].shadow = self.get_shadow(i,j)
         
         self.go_through_forest(inner)
     
+    def get_shadow(self, i, j):
+        return np.sum(self.shadow_kernel*self.sunlight_grid[i-1:i+2, j-1:j+2])
     
     def death_or_growth(self):
         """
@@ -132,14 +139,9 @@ class Forest:
         The trees are spawned in empty cells with a probability of spawn_probability.
         """
         self.update_gene_pools()
-        
-        #This solution is bad and stupid, I apologize
-        shadow_kernel = np.array([[0.05, 0.1, 0.05],
-                                  [0.1, 0, 0.1],
-                                  [0.05, 0.1, 0.05]])
 
         def inner(self, i, j):
-            if self.grid[i, j] is None and np.random.rand() < self.spawn_probability and self.sunlight_grid[i,j] >= np.sum(shadow_kernel*self.sunlight_grid[i-1:i+2, j-1:j+2]):
+            if self.grid[i, j] is None and np.random.rand() < self.spawn_probability and self.sunlight_grid[i,j] >= self.get_shadow(i,j):
                 species = random.choice(list(self.gene_pools.keys()))
                 current_gene_pool = self.gene_pools[species]
                 if len(current_gene_pool) < 2:
@@ -148,7 +150,7 @@ class Forest:
                     return
                 # Create a child tree from gene pool
                 child_genes = self.genetic_algorithm.generate_children(current_gene_pool, 1)[0]
-                self.grid[i, j] = SPECIES_CLASS[species](genes=child_genes)
+                self.grid[i, j] = SPECIES_CLASS[species](height_mod=self.noise_grid[i,j], genes=child_genes)
         
         self.go_through_forest(inner)
     
@@ -178,6 +180,8 @@ class Forest:
         self.gen += 1
     
     def go_through_forest(self, func):
-        for i in range(1, self.size+1):
-            for j in range(1, self.size+1):
-                func(self, i, j)
+        for i, j in ndindex(self.size, self.size):
+            func(self, i+1, j+1)
+        #for i in range(1, self.size+1):
+        #    for j in range(1, self.size+1):
+        #        func(self, i, j)
