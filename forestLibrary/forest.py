@@ -32,7 +32,7 @@ class Forest:
 
         self.noise = Noise(3, 90)
         self.noise_grid = self.noise.compute_noise_grid(30, self.size+2)
-        print(self.noise_grid)
+        #print(self.noise_grid)
 
         # Forest is spawned on grid with random tree species
         self.initial_population = initial_population
@@ -61,7 +61,7 @@ class Forest:
         """
         def inner(self, i, j):
             # 1 --> self.size+1 are the non-boundary cells    
-            if np.random.rand() < self.initial_population:
+            if np.random.rand() < self.initial_population and self.noise_grid[i,j] >= 0:
                 # Given a wanted population probability distribution, spawn random trees
                 species_name = random.choice(self.active_species)
                 genes = get_species_params(species_name, param_dict=reduced_SPECIES)
@@ -141,7 +141,7 @@ class Forest:
         self.update_gene_pools()
 
         def inner(self, i, j):
-            if self.grid[i, j] is None and np.random.rand() < self.spawn_probability and self.sunlight_grid[i,j] >= self.get_shadow(i,j):
+            if self.grid[i, j] is None and np.random.rand() < self.spawn_probability and self.sunlight_grid[i,j] >= self.get_shadow(i,j) and self.noise_grid[i,j] >= 0:
                 species = random.choice(list(self.gene_pools.keys()))
                 current_gene_pool = self.gene_pools[species]
                 if len(current_gene_pool) < 2:
