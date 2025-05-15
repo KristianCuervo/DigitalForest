@@ -119,16 +119,15 @@ class Forest:
         The trees that die are removed from the forest.
         """
 
-        for i in range(1, self.size+1):
-            for j in range(1, self.size+1):
-                if self.grid[i, j] is not None:
-                    if self.grid[i, j].survival_roll(simulation_year=self.gen, scenario=self.scenario) == False:
-                        self.graveyard[self.grid[i,j].genes['species']].append(self.grid[i,j]) # Collects the tree instance in the graveyard
-                        self.death_pool[i, j] = self.grid[i, j] # adds the final tree state before its death to a pool for rendering
-
-                        self.grid[i, j] = None # Kills the tree instance
-                    else:
-                        self.grid[i, j].grow(climate_zone=self.scenario)
+        def inner(self, i, j):
+            if self.grid[i, j] is not None:
+                if self.grid[i, j].survival_roll(simulation_year=self.gen, scenario=self.scenario) == False:
+                    self.graveyard[self.grid[i,j].genes['species']].append(self.grid[i,j]) # Collects the tree instance in the graveyard
+                    self.death_pool[i, j] = self.grid[i, j] # adds the final tree state before its death to a pool for rendering
+                    self.grid[i, j] = None # Kills the tree instance
+                else:
+                    self.grid[i, j].grow(climate_zone=self.scenario)
+        self.go_through_forest(inner)
 
 
     def update_gene_pools(self):
