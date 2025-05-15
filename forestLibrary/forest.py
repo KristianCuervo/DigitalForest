@@ -215,8 +215,8 @@ class Forest:
         self.death_or_growth()
         self.spawn_new_trees()
 
-        #if self.gen % 10 == 0:
-            #self.record_champions()
+        if self.gen % 10 == 0:
+            self.record_champions()
         self.gen += 1
 
     
