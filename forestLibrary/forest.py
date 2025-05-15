@@ -70,15 +70,15 @@ class Forest:
         age 1 or at random ages.
         """
 
-        for i in range(1, self.size+1):
-            for j in range(1, self.size+1):
-                # 1 --> self.size+1 are the non-boundary cells
-                
-                if self.rnd.random() < self.initial_population:
-                    # Given a wanted population probability distribution, spawn random trees
-                    species_name = random.choice(self.active_species)
-                    genes = get_species_params(species_name, param_dict=reduced_SPECIES)
-                    self.grid[i, j] = SPECIES_CLASS[species_name](height_mod=self.noise_grid[i,j], genes=genes)
+        def inner(self, i, j):
+            # 1 --> self.size+1 are the non-boundary cells
+            
+            if self.noise_grid[i,j] >= 0 and self.rnd.random() < self.initial_population:
+                # Given a wanted population probability distribution, spawn random trees
+                species_name = random.choice(self.active_species)
+                genes = get_species_params(species_name, param_dict=reduced_SPECIES)
+                self.grid[i, j] = SPECIES_CLASS[species_name](height_mod=self.noise_grid[i,j], genes=genes)
+        self.go_through_forest(inner)
 
     def update_sunlight(self):
         """
@@ -224,6 +224,3 @@ class Forest:
     def go_through_forest(self, func):
         for i, j in ndindex(self.size, self.size):
             func(self, i+1, j+1)
-        #for i in range(1, self.size+1):
-        #    for j in range(1, self.size+1):
-        #        func(self, i, j)
