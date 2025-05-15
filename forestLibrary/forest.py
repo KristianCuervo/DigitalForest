@@ -56,8 +56,8 @@ class Forest:
         self.genetic_algorithm = GeneticAlgorithm(mutation_rate=0.1, mutation_strength=0.25)
         
         # Collectors for data analysis and gene graphs
-        self.graveyard = {s: [] for s in self.active_species} # all dead trees
-        self.champions = {s: [] for s in self.active_species} # most fit trees every few generations
+        self.graveyard = {s: [] for s in list(SPECIES_CLASS.keys())} # all dead trees
+        self.champions = {s: [] for s in list(SPECIES_CLASS.keys())} # most fit trees every few generations
 
 
         
@@ -123,7 +123,7 @@ class Forest:
             for j in range(1, self.size+1):
                 if self.grid[i, j] is not None:
                     if self.grid[i, j].survival_roll(simulation_year=self.gen, scenario=self.scenario) == False:
-                        #self.graveyard[self.grid[i,j].genes['species']].append(self.grid[i,j]) # Collects the tree instance in the graveyard
+                        self.graveyard[self.grid[i,j].genes['species']].append(self.grid[i,j]) # Collects the tree instance in the graveyard
                         self.death_pool[i, j] = self.grid[i, j] # adds the final tree state before its death to a pool for rendering
 
                         self.grid[i, j] = None # Kills the tree instance
@@ -180,6 +180,7 @@ class Forest:
         self.update_gene_pools()
 
         for species, pool in self.gene_pools.items():
+
             # filter only mature trees
             mature_trees = [
                 t for t in pool
@@ -215,8 +216,8 @@ class Forest:
         self.death_or_growth()
         self.spawn_new_trees()
 
-        #if self.gen % 10 == 0:
-            #self.record_champions()
+        if self.gen % 10 == 0:
+            self.record_champions()
         self.gen += 1
 
     

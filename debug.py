@@ -17,6 +17,9 @@ def display_champions(forest):
         bg_col=[1, 1, 1]        
     )
 
+def display_gene_graph(forest):
+    frames = []
+    for frame in forest.champions.
 
 
 def main():
@@ -24,7 +27,7 @@ def main():
 
     total_generations = 101
    
-    forest = Forest(size=50, initial_population=0.5, spawn_probability=0.25, species_subset=['honda', 'pine', 'shrub'], 
+    forest = Forest(size=10, initial_population=0.5, spawn_probability=0.25, species_subset=['honda', 'pine', 'shrub'], 
                     scenario='polar')
 
     for gen in range(total_generations):
