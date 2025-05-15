@@ -147,11 +147,11 @@ def init_blender_geonodes(species_subset=None):
     return geonodes
 
 
-def animate_tree(tree_final_state,tree_age, current_gen, generation_to_frames_ratio, obj, geo_mod, blender_sockets):
+def animate_tree(tree_final_state, tree_age, current_gen, generation_to_frames_ratio, obj, geo_mod, blender_sockets):
     """
     Animate the tree growth and death using keyframes.
     """
-
+    #print( f"Animating tree {tree_final_state} at generation {current_gen}")
     # Calculate birth generation (when the tree first appeared)
     birth_gen = current_gen - tree_age
 
@@ -278,19 +278,26 @@ def set_up_terrain(noise_grid: np.ndarray, spacing: float = 1.0, scale: float = 
 #  Main simulation → bakes every generation and builds a playable animation
 # ─────────────────────────────────────────────────────────────────────────────
 def main():
+    
+    # ─────────────────────────────────────────────────────────────────────────────
+    #  Mode settings
+    # ─────────────────────────────────────────────────────────────────────────────
+    # If True, skip all the per-generation baking/animation and just show
+    # the final forest state after total_generations.
+    show_final_state_only = True
+
+    # If show_final_state_only is False, then:
+    #  • animate_all_gens=True   → animate every generation
+    #  • animate_all_gens=False  → animate only the last animate_last_n gens
+    animate_all_gens = False
+    animate_last_n   = 10
+    
     ### Set up simulation environment ###
-
-    total_generations = 101  # becomes frame_end (frames 0 … 99)
-    spacing = 2
-    chosen_species = [
-        "honda",
-        "pine",
-        #"shrub",
-    ]
-
-    # Create forest simulation
+    total_generations = 101
+    spacing          = 2
+    chosen_species   = ["honda", "pine", "shrub"]  # , "fern", "binary", "stochastic"]
     forest = Forest(
-        size=50,
+        size=20,
         initial_population=0.5,
         spawn_probability=0.25,
         species_subset=chosen_species,
@@ -298,83 +305,97 @@ def main():
     )
 
     ### Set up Blender environment ###
-
-    # Set up blender terrain
-    #noise_grid = forest.noise_grid
-    #set_up_terrain(noise_grid)
-    
-    # Set up Blender sockets for geometry nodes
-    blender_sockets = {
-        "birch": "Socket_3",
-        "oak": "Socket_7",
-        "pine": "Socket_3",
-    }
-
-    # Set up generation to frames ratio
+    blender_sockets = { "birch":"Socket_3", "oak":"Socket_7", "pine":"Socket_3", "shrub":"Socket_3" }
     generation_to_frames_ratio = 5
-
-    # Initialize geometry nodes
     geonodes = init_blender_geonodes(chosen_species)
     if not geonodes:
-        print("Error: No valid geometry nodes found for the specified species.")
+        print("Error: No valid geometry nodes found.")
         return
 
-    # Clean master collection - using improved collection handling
+    # clean or create a top-level collection
     master_col = get_or_create_collection("Forest Simulation")
 
-    ## Create a collection for all posible generations
-    for gen in range(total_generations):
-        generation_name = f"Gen_{(1+gen):03d}"
-        gen_col = get_or_create_collection(generation_name, master_col)
+    if show_final_state_only:
+        # ── FAST PATH: only final curves, no animation ─────────────────────────
+        # advance simulation to the end
+        for _ in range(total_generations):
+            forest.step()
+            print(f"Processing generation {_}/{total_generations-1}…")
 
-    # ── Bake every generation to its own collection ────────────────────────
-    for gen in range(total_generations):
-        print(f"Processing generation {gen}/{total_generations-1}...")
-        forest.step()
+        # create one “Final” collection
+        final_col = get_or_create_collection("FinalState", master_col)
 
-        for i in range(1, forest.size + 1):
-            for j in range(1, forest.size + 1):
-                tree_final_state = forest.reached_termination(i, j)
-
-                if tree_final_state is None:
+        for i in range(1, forest.size+1):
+            for j in range(1, forest.size+1):
+                tree_final = forest.reached_termination(i, j)
+                if tree_final is None:
                     continue
 
-                tree_age = tree_final_state.age
+                # build only the final curve
+                curve = tree_to_curve(tree_final, i-1, j-1, spacing=spacing)
+                obj   = bpy.data.objects.new(f"tree_{i-1}_{j-1}", curve)
+                obj.location = ((i-1)*spacing, (j-1)*spacing, 0.0)
 
-                curve = tree_to_curve(tree_final_state, i - 1, j - 1, spacing=spacing)
-                obj_name = f"tree_{i-1}_{j-1}_g{(2+gen-tree_age):03d}"
-                obj = bpy.data.objects.new(obj_name, curve)
-                obj.location = ((i - 1) * spacing, (j - 1) * spacing, 0.0)
+                # apply geometry-node look
+                species = tree_final.genes["species"]
+                if species in geonodes:
+                    mod = obj.modifiers.new(f"geoNode_{species}", "NODES")
+                    mod.node_group = geonodes[species]
 
-                modifier_name = (
-                    f"geoNode_{tree_final_state.genes['species']}_{obj_name}"
+                # Set growth ratio to 1.0 (fully grown)
+                input_name = blender_sockets[species]
+                mod[input_name] = 1.0
+                
+                final_col.objects.link(obj)
+
+        print("Final forest state generated—no animation.")
+        return
+
+    # ── FULL BAKE + ANIMATION PATH ─────────────────────────────────────────────
+    # pre-create per-generation collections
+    for gen in range(total_generations):
+        get_or_create_collection(f"Gen_{(1+gen):03d}", master_col)
+
+    for gen in range(total_generations):
+        print(f"Processing generation {gen}/{total_generations-1}…")
+        forest.step()
+
+        # decide whether to animate/bake this gen
+        is_late = (gen >= total_generations - animate_last_n)
+        do_full = (animate_all_gens or is_late)
+        if not do_full:
+            continue
+
+        for i in range(1, forest.size+1):
+            for j in range(1, forest.size+1):
+                tree_final = forest.reached_termination(i, j)
+                if tree_final is None:
+                    continue
+
+                curve = tree_to_curve(tree_final, i-1, j-1, spacing=spacing)
+                obj   = bpy.data.objects.new(
+                    f"tree_{i-1}_{j-1}_g{(2+gen-tree_final.age):03d}", curve
                 )
-                if tree_final_state.genes["species"] in geonodes:
-                    mod = obj.modifiers.new(modifier_name, "NODES")
-                    mod.node_group = geonodes[tree_final_state.genes["species"]]
+                obj.location = ((i-1)*spacing, (j-1)*spacing, 0.0)
 
-                generation_name = f"Gen_{(2+gen-tree_age):03d}"
-                gen_col = bpy.data.collections[generation_name]
+                species = tree_final.genes["species"]
+                mod_name = f"geoNode_{species}_{obj.name}"
+                mod = obj.modifiers.new(mod_name, "NODES")
+                mod.node_group = geonodes[species]
 
+                # link & animate
+                gen_col = bpy.data.collections[f"Gen_{(2+gen-tree_final.age):03d}"]
                 gen_col.objects.link(obj)
 
-                geo_mod = obj.modifiers[modifier_name]
-
-                # Animate the tree
                 animate_tree(
-                    tree_final_state,
-                    tree_age,
+                    tree_final,
+                    tree_final.age,
                     gen,
                     generation_to_frames_ratio,
                     obj,
-                    geo_mod,
+                    mod,
                     blender_sockets,
                 )
-
-    # Add champion trees to the collection
-    #champions = forest.campions
-    #champions_position = (50.0, 50.0, 0.0)
-    #set_up_champions(champions, spacing, champions_position)
 
     print(f"Forest simulation complete with {total_generations} generations.")
 
