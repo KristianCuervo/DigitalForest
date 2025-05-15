@@ -207,7 +207,7 @@ def animate_tree(tree_final_state, tree_age, current_gen, generation_to_frames_r
 
 
 def set_up_champions(
-    champions: dict, spacing: float = 5.0, champions_position: tuple = (0.0, 0.0, 0.0)
+    champions: dict, spacing: float = 5.0, champions_position: tuple = (0.0, 0.0, 0.0), blender_sockets: dict = None, geonodes: dict = None
 ) -> None:
     champions_collection = get_or_create_collection("Champions")
 
@@ -222,11 +222,22 @@ def set_up_champions(
                 champions_position[2],
             )
             tree_obj = tree_to_curve(
-                tree, champions_position[0], champions_position[1], spacing=spacing
+                tree[1], champions_position[0], champions_position[1], spacing=spacing
             )
-            object_name = f"{champion_name}_{tree.age}"
+            object_name = f"{champion_name}_{tree[0]}"
             obj = bpy.data.objects.new(object_name, tree_obj)
             obj.location = champions_position
+            
+            # apply geometry-node look
+            species = tree[1].genes["species"]
+            if species in geonodes:
+                mod = obj.modifiers.new(f"geoNode_{species}", "NODES")
+                mod.node_group = geonodes[species]
+                
+            # Set growth ratio to 1.0 (fully grown)
+            input_name = blender_sockets[species]
+            mod[input_name] = 1.0
+            
             tree_type_collection.objects.link(obj)
 
 
@@ -293,7 +304,7 @@ def main():
     animate_last_n   = 10
     
     # If True, only generate the champions and skip the animation.
-    only_champions = False
+    only_champions = True
     
     ### Set up simulation environment ###
     total_generations = 101
@@ -326,8 +337,7 @@ def main():
             print(f"Processing generation {_}/{total_generations-1}…")
 
         # create one “Champions” collection
-        champions_col = get_or_create_collection("Champions", master_col)
-        set_up_champions(forest.champions, spacing=spacing, champions_position=(0.0, 0.0, 50.0))
+        set_up_champions(forest.champions, spacing=10, champions_position=(100.0, 0.0, 0.0), blender_sockets=blender_sockets, geonodes=geonodes)
 
         print("Champions generated—no animation.")
         return
