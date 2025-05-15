@@ -292,6 +292,9 @@ def main():
     animate_all_gens = False
     animate_last_n   = 10
     
+    # If True, only generate the champions and skip the animation.
+    only_champions = False
+    
     ### Set up simulation environment ###
     total_generations = 101
     spacing          = 2
@@ -314,6 +317,20 @@ def main():
 
     # clean or create a top-level collection
     master_col = get_or_create_collection("Forest Simulation")
+
+    if only_champions:
+        # ── FAST PATH: only champions, no animation ───────────────────────────
+        # advance simulation to the end
+        for _ in range(total_generations):
+            forest.step()
+            print(f"Processing generation {_}/{total_generations-1}…")
+
+        # create one “Champions” collection
+        champions_col = get_or_create_collection("Champions", master_col)
+        set_up_champions(forest.champions, spacing=spacing, champions_position=(0.0, 0.0, 50.0))
+
+        print("Champions generated—no animation.")
+        return
 
     if show_final_state_only:
         # ── FAST PATH: only final curves, no animation ─────────────────────────
