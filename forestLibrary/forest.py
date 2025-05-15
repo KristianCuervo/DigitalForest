@@ -32,10 +32,13 @@ class Forest:
         self.size = size # Tree Size
         self.grid = np.empty((size+2, size+2), dtype=object)
 
-        self.noise = Noise(3, 90)
-        self.noise_grid = self.noise.compute_noise_grid(30, self.size+2)
-        self.noise_grid = np.ones((self.size+2, self.size+2))
+        self.noise = Noise(3, 90, seed=seed) # Noise is used to create a height map for the trees
+        noise_vertical_scale = 100
+        vertical_offset = 0.05
+        self.noise_grid = noise_vertical_scale * (self.noise.compute_turbulence_grid(0.01, size+2, 3) + vertical_offset)
+        #self.noise_grid = np.ones((self.size+2, self.size+2))
         #print(self.noise_grid)
+
 
         # Forest is spawned on grid with random tree species
         self.initial_population = initial_population

@@ -5,7 +5,7 @@ from .lsystem_utils import realize
 class Tree:
     def __init__(self, genes, height_mod, axiom=None):
         self.genes   = genes
-        self.height_mod = 10*height_mod
+        self.height_mod = height_mod
         self.lsystem = axiom if axiom else [('A', 1.0, 0.2)]
         self.age     = 1
 
